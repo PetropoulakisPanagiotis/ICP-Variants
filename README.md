@@ -7,5 +7,5 @@ Analysis and implementation of ICP variants
 * Panagiotis Petropoulakis
 * Suren Sritharan
 
-:zap: equal contribution 
+:zap: <em>Equal contribution</em>
 
