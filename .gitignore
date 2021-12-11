@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+*/.vs
+Libs
+Data
+icp-variants/Build
+icp-variants/build
