@@ -86,11 +86,11 @@ int alignBunnyWithICP() {
 	
 	optimizer->setMatchingMaxDistance(0.0003f);
 	if (USE_POINT_TO_PLANE) {
-		optimizer->usePointToPlaneConstraints(true);
+		optimizer->setMetric(1);
 		optimizer->setNbOfIterations(100);
 	}
 	else {
-		optimizer->usePointToPlaneConstraints(false);
+		optimizer->setMetric(0);
 		optimizer->setNbOfIterations(100);
 	}
 
@@ -145,11 +145,11 @@ int reconstructRoom() {
 
 	optimizer->setMatchingMaxDistance(0.1f);
 	if (USE_POINT_TO_PLANE) {
-		optimizer->usePointToPlaneConstraints(true);
+		optimizer->setMetric(1);
 		optimizer->setNbOfIterations(10);
 	}
 	else {
-		optimizer->usePointToPlaneConstraints(false);
+		optimizer->setMetric(0);
 		optimizer->setNbOfIterations(20);
 	}
 

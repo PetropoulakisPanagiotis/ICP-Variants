@@ -1,7 +1,5 @@
 #pragma once
-//#include <nanoflann.hpp>
 #include <flann/flann.hpp>
-
 #include "Eigen.h"
 
 struct Match {
@@ -182,6 +180,26 @@ private:
 	int m_nTrees;
 	flann::Index<flann::L2<float>>* m_index;
 	float* m_flatPoints;
+};
+
+class NearestNeighborSearchProjective : public NearestNeighborSearch {
+public:
+	NearestNeighborSearchProjective() {}
+
+	~NearestNeighborSearchProjective() {
+	}
+
+	void buildIndex(const std::vector<Eigen::Vector3f>& targetPoints) {
+	}
+
+	std::vector<Match> queryMatches(const std::vector<Vector3f>& transformedPoints) {
+		std::vector<Match> matches;
+		
+        return matches;
+	}
+
+private:
+    int x;
 };
 
 
