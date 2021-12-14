@@ -17,8 +17,8 @@
 
 void debugCorrespondenceMatching() {
 	// Load the source and target mesh.
-	const std::string filenameSource = std::string("../../Data/bunny_part2_trans.off");
-	const std::string filenameTarget = std::string("../../Data/bunny_part1.off");
+	const std::string filenameSource = std::string("../Data/bunny_part2_trans.off");
+	const std::string filenameTarget = std::string("../Data/bunny_part1.off");
 
 	SimpleMesh sourceMesh;
 	if (!sourceMesh.loadMesh(filenameSource)) {
@@ -60,8 +60,8 @@ void debugCorrespondenceMatching() {
 
 int alignBunnyWithICP() {
 	// Load the source and target mesh.
-	const std::string filenameSource = std::string("../../Data/bunny_part2_trans.off");
-	const std::string filenameTarget = std::string("../../Data/bunny_part1.off");
+	const std::string filenameSource = std::string("../Data/bunny_part2_trans.off");
+	const std::string filenameTarget = std::string("../Data/bunny_part1.off");
 
 	SimpleMesh sourceMesh;
 	if (!sourceMesh.loadMesh(filenameSource)) {
@@ -119,7 +119,7 @@ int alignBunnyWithICP() {
 }
 
 int reconstructRoom() {
-	std::string filenameIn = std::string("../../Data/rgbd_dataset_freiburg1_xyz/");
+	std::string filenameIn = std::string("../Data/rgbd_dataset_freiburg1_xyz/");
 	std::string filenameBaseOut = std::string("mesh_");
 
 	// Load video
