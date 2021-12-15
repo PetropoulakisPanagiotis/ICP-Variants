@@ -11,187 +11,8 @@
 #include "NearestNeighbor.h"
 #include "PointCloud.h"
 #include "ProcrustesAligner.h"
-
-/**
- * Helper methods for writing Ceres cost functions.
- */
-template <typename T>
-static inline void fillVector(const Vector3f& input, T* output) {
-    output[0] = T(input[0]);
-    output[1] = T(input[1]);
-    output[2] = T(input[2]);
-}
-
-
-/**
- * Pose increment is only an interface to the underlying array (in constructor, no copy
- * of the input array is made).
- * Important: Input array needs to have a size of at least 6.
- */
-// array -> rx, ry, rz, tx, ty, tz
-// conver to matrix -> matrix
-// apply  
-template <typename T>
-class PoseIncrement {
-public:
-    explicit PoseIncrement(T* const array) : m_array{ array } { }
-
-    void setZero() {
-        for (int i = 0; i < 6; ++i)
-            m_array[i] = T(0);
-    }
-
-    T* getData() const {
-        return m_array;
-    }
-
-    /**
-     * Applies the pose increment onto the input point and produces transformed output point.
-     * Important: The memory for both 3D points (input and output) needs to be reserved (i.e. on the stack)
-     * beforehand).
-     */
-    void apply(T* inputPoint, T* outputPoint) const {
-        // pose[0,1,2] is angle-axis rotation.
-        // pose[3,4,5] is translation.
-        const T* rotation = m_array;
-        const T* translation = m_array + 3;
-
-        T temp[3];
-        ceres::AngleAxisRotatePoint(rotation, inputPoint, temp);
-
-        outputPoint[0] = temp[0] + translation[0];
-        outputPoint[1] = temp[1] + translation[1];
-        outputPoint[2] = temp[2] + translation[2];
-    }
-
-    /**
-     * Converts the pose increment with rotation in SO3 notation and translation as 3D vector into
-     * transformation 4x4 matrix.
-     */
-    static Matrix4f convertToMatrix(const PoseIncrement<double>& poseIncrement) {
-        // pose[0,1,2] is angle-axis rotation.
-        // pose[3,4,5] is translation.
-        double* pose = poseIncrement.getData();
-        double* rotation = pose;
-        double* translation = pose + 3;
-
-        // Convert the rotation from SO3 to matrix notation (with column-major storage).
-        double rotationMatrix[9];
-        ceres::AngleAxisToRotationMatrix(rotation, rotationMatrix);
-
-        // Create the 4x4 transformation matrix.
-        Matrix4f matrix;
-        matrix.setIdentity();
-        matrix(0, 0) = float(rotationMatrix[0]);	matrix(0, 1) = float(rotationMatrix[3]);	matrix(0, 2) = float(rotationMatrix[6]);	matrix(0, 3) = float(translation[0]);
-        matrix(1, 0) = float(rotationMatrix[1]);	matrix(1, 1) = float(rotationMatrix[4]);	matrix(1, 2) = float(rotationMatrix[7]);	matrix(1, 3) = float(translation[1]);
-        matrix(2, 0) = float(rotationMatrix[2]);	matrix(2, 1) = float(rotationMatrix[5]);	matrix(2, 2) = float(rotationMatrix[8]);	matrix(2, 3) = float(translation[2]);
-
-        return matrix;
-    }
-
-private:
-    T* m_array;
-};
-
-
-/**
- * Optimization constraints.
- */
-class PointToPointConstraint {
-public:
-    PointToPointConstraint(const Vector3f& sourcePoint, const Vector3f& targetPoint, const float weight) :
-        m_sourcePoint{ sourcePoint },
-        m_targetPoint{ targetPoint },
-        m_weight{ weight }
-    { }
-
-    template <typename T>
-    bool operator()(const T* const pose, T* residuals) const {
-        // TODO: Implemented the point-to-point cost function.
-        // The resulting 3D residual should be stored in residuals array. To apply the pose 
-        // increment (pose parameters) to the source point, you can use the PoseIncrement
-        // class.
-        // Important: Ceres automatically squares the cost function.
-
-        /*  Use poseIncrement to apply transformation to source point */
-        PoseIncrement<T> poseIncrement = PoseIncrement<T>((T* const)pose);
-
-        /* Use casting for m_sourcePoint and apply transformation */
-        T m_sourcePointTemp[3] = {(T)this->m_sourcePoint[0], (T)this->m_sourcePoint[1], (T)this->m_sourcePoint[2]}; 
-        T m_sourcePointTransformed[3] = {(T)0.0, (T)0.0, (T)0.0}; 
-
-        poseIncrement.apply(m_sourcePointTemp, m_sourcePointTransformed);
-
-        residuals[0] = (T)this-> LAMBDA * (T)this->m_weight * (m_sourcePointTransformed[0] - (T)this->m_targetPoint[0]);
-		residuals[1] = (T)this-> LAMBDA * (T)this->m_weight * (m_sourcePointTransformed[1] - (T)this->m_targetPoint[1]);
-		residuals[2] = (T)this-> LAMBDA * (T)this->m_weight * (m_sourcePointTransformed[2] - (T)this->m_targetPoint[2]);
-
-        return true;
-    }
-
-    static ceres::CostFunction* create(const Vector3f& sourcePoint, const Vector3f& targetPoint, const float weight) {
-        return new ceres::AutoDiffCostFunction<PointToPointConstraint, 3, 6>(
-            new PointToPointConstraint(sourcePoint, targetPoint, weight)
-            );
-    }
-
-protected:
-    const Vector3f m_sourcePoint;
-    const Vector3f m_targetPoint;
-    const float m_weight;
-    const float LAMBDA = 0.1f;
-};
-
-class PointToPlaneConstraint {
-public:
-    PointToPlaneConstraint(const Vector3f& sourcePoint, const Vector3f& targetPoint, const Vector3f& targetNormal, const float weight) :
-        m_sourcePoint{ sourcePoint },
-        m_targetPoint{ targetPoint },
-        m_targetNormal{ targetNormal },
-        m_weight{ weight }
-    { }
-
-    template <typename T>
-    bool operator()(const T* const pose, T* residuals) const {
-        // TODO: Implemented the point-to-plane cost function.
-        // The resulting 1D residual should be stored in residuals array. To apply the pose 
-        // increment (pose parameters) to the source point, you can use the PoseIncrement
-        // class.
-        // Important: Ceres automatically squares the cost function.
-
-        /*  Use poseIncrement to apply transformation to source point */
-        PoseIncrement<T> poseIncrement = PoseIncrement<T>((T* const)pose);
-
-        /* Use casting for m_sourcePoint and apply transformation */
-        T m_sourcePointTemp[3] = {(T)this->m_sourcePoint[0], (T)this->m_sourcePoint[1], (T)this->m_sourcePoint[2]}; 
-        T m_sourcePointTransformed[3] = {(T)0.0, (T)0.0, (T)0.0}; 
-
-        /* Use casting for m_sourcePoint and apply transformation */
-        poseIncrement.apply(m_sourcePointTemp, m_sourcePointTransformed);
-
-        T x_component = (T)this->m_targetNormal[0] * (m_sourcePointTransformed[0] - (T)this->m_targetPoint[0]);
-        T y_component = (T)this->m_targetNormal[1] * (m_sourcePointTransformed[1] - (T)this->m_targetPoint[1]);
-        T z_component = (T)this->m_targetNormal[2] * (m_sourcePointTransformed[2] - (T)this->m_targetPoint[2]);
-
-        residuals[0] = (T)this->LAMBDA * (T)this->m_weight * (x_component + y_component + z_component);
-
-        return true;
-    }
-
-    static ceres::CostFunction* create(const Vector3f& sourcePoint, const Vector3f& targetPoint, const Vector3f& targetNormal, const float weight) {
-        return new ceres::AutoDiffCostFunction<PointToPlaneConstraint, 1, 6>(
-            new PointToPlaneConstraint(sourcePoint, targetPoint, targetNormal, weight)
-            );
-    }
-
-protected:
-    const Vector3f m_sourcePoint;
-    const Vector3f m_targetPoint;
-    const Vector3f m_targetNormal;
-    const float m_weight;
-    const float LAMBDA = 1.0f;
-};
-
+#include "utils.h"
+#include "constraints.h"
 
 /**
  * ICP optimizer - Abstract Base Class
@@ -199,17 +20,25 @@ protected:
 class ICPOptimizer {
 public:
     ICPOptimizer() :
-        m_bUsePointToPlaneConstraints{ false },
-        m_nIterations{ 20 },
-        m_nearestNeighborSearch{ std::make_unique<NearestNeighborSearchFlann>() }
-    { }
+        metric{ 0 },
+        m_nIterations{ 20 }, matchingMethod{0}{ 
+   
+        if(matchingMethod == 0) 
+            m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchFlann>();
+        else
+            m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchProjective>();
+    }
 
     void setMatchingMaxDistance(float maxDistance) {
         m_nearestNeighborSearch->setMatchingMaxDistance(maxDistance);
     }
 
-    void usePointToPlaneConstraints(bool bUsePointToPlaneConstraints) {
-        m_bUsePointToPlaneConstraints = bUsePointToPlaneConstraints;
+    void setMetric(unsigned int metric) {
+        this->metric = metric;
+    }
+
+    void setMatchingMethod(unsigned int matchingMethod) {
+        this->matchingMethod = matchingMethod;
     }
 
     void setNbOfIterations(unsigned nIterations) {
@@ -219,7 +48,8 @@ public:
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) = 0;
 
 protected:
-    bool m_bUsePointToPlaneConstraints;
+    unsigned int metric;
+    unsigned int matchingMethod;
     unsigned m_nIterations;
     std::unique_ptr<NearestNeighborSearch> m_nearestNeighborSearch;
 
@@ -308,7 +138,10 @@ public:
 
             // Prepare point-to-point and point-to-plane constraints.
             ceres::Problem problem;
-            prepareConstraints(transformedPoints, target.getPoints(), target.getNormals(), matches, poseIncrement, problem);
+            if(metric == 0)
+                prepareConstraintsPointICP(transformedPoints, target.getPoints(), target.getNormals(), matches, poseIncrement, problem);
+            else if(metric == 1)
+                prepareConstraintsPlaneICP(transformedPoints, target.getPoints(), target.getNormals(), matches, poseIncrement, problem);
 
             // Configure options for the solver.
             ceres::Solver::Options options;
@@ -344,7 +177,7 @@ private:
         options.num_threads = 8;
     }
 
-    void prepareConstraints(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
+    void prepareConstraintsPointICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
         const unsigned nPoints = sourcePoints.size();
 
         for (unsigned i = 0; i < nPoints; ++i) {
@@ -358,34 +191,118 @@ private:
 
                 // TODO: Create a new point-to-point cost function and add it as constraint (i.e. residual block) 
                 // to the Ceres problem.
-                double weight = 1.0;
 
                 problem.AddResidualBlock(
                     new ceres::AutoDiffCostFunction<PointToPointConstraint, 3, 6>(
-                        new PointToPointConstraint(sourcePoint, targetPoint, weight)
+                        new PointToPointConstraint(sourcePoint, targetPoint, match.weight)
+                    ),
+                    nullptr, poseIncrement.getData()
+                );
+            }
+        }
+    }
+
+    void prepareConstraintsPlaneICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
+        const unsigned nPoints = sourcePoints.size();
+
+        for (unsigned i = 0; i < nPoints; ++i) {
+            const auto match = matches[i];
+            if (match.idx >= 0) {
+                const auto& sourcePoint = sourcePoints[i];
+                const auto& targetPoint = targetPoints[match.idx];
+
+                if (!sourcePoint.allFinite() || !targetPoint.allFinite())
+                    continue;
+
+                // TODO: Create a new point-to-point cost function and add it as constraint (i.e. residual block) 
+                // to the Ceres problem.
+
+                const auto& targetNormal = targetNormals[match.idx];
+
+                if (!targetNormal.allFinite())
+                    continue;
+
+                // TODO: Create a new point-to-plane cost function and add it as constraint (i.e. residual block) 
+                // to the Ceres problem.
+                problem.AddResidualBlock(
+                    new ceres::AutoDiffCostFunction<PointToPlaneConstraint, 1, 6>(
+                        new PointToPlaneConstraint(sourcePoint, targetPoint, targetNormal, match.weight)
                     ),
                     nullptr, poseIncrement.getData()
                 );
 
-                if (m_bUsePointToPlaneConstraints) {
-                    const auto& targetNormal = targetNormals[match.idx];
-
-                    if (!targetNormal.allFinite())
-                        continue;
-
-                    // TODO: Create a new point-to-plane cost function and add it as constraint (i.e. residual block) 
-                    // to the Ceres problem.
-                    problem.AddResidualBlock(
-                        new ceres::AutoDiffCostFunction<PointToPlaneConstraint, 1, 6>(
-                            new PointToPlaneConstraint(sourcePoint, targetPoint, targetNormal, weight)
-                        ),
-                        nullptr, poseIncrement.getData()
-                    );
-
-                }
             }
         }
     }
+
+    void prepareConstraintsColorICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
+        const unsigned nPoints = sourcePoints.size();
+        /*
+        for (unsigned i = 0; i < nPoints; ++i) {
+            const auto match = matches[i];
+            if (match.idx >= 0) {
+                const auto& sourcePoint = sourcePoints[i];
+                const auto& targetPoint = targetPoints[match.idx];
+
+                if (!sourcePoint.allFinite() || !targetPoint.allFinite())
+                    continue;
+
+                // TODO: Create a new point-to-point cost function and add it as constraint (i.e. residual block) 
+                // to the Ceres problem.
+
+                const auto& targetNormal = targetNormals[match.idx];
+
+                if (!targetNormal.allFinite())
+                    continue;
+
+                // TODO: Create a new point-to-plane cost function and add it as constraint (i.e. residual block) 
+                // to the Ceres problem.
+                problem.AddResidualBlock(
+                    new ceres::AutoDiffCostFunction<PointToPlaneConstraint, 1, 6>(
+                        new PointToPlaneConstraint(sourcePoint, targetPoint, targetNormal, match.weight)
+                    ),
+                    nullptr, poseIncrement.getData()
+                );
+
+            }
+        }
+        */
+    }
+
+    void prepareConstraintsSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
+        const unsigned nPoints = sourcePoints.size();
+        /*
+        for (unsigned i = 0; i < nPoints; ++i) {
+            const auto match = matches[i];
+            if (match.idx >= 0) {
+                const auto& sourcePoint = sourcePoints[i];
+                const auto& targetPoint = targetPoints[match.idx];
+
+                if (!sourcePoint.allFinite() || !targetPoint.allFinite())
+                    continue;
+
+                // TODO: Create a new point-to-point cost function and add it as constraint (i.e. residual block) 
+                // to the Ceres problem.
+
+                const auto& targetNormal = targetNormals[match.idx];
+
+                if (!targetNormal.allFinite())
+                    continue;
+
+                // TODO: Create a new point-to-plane cost function and add it as constraint (i.e. residual block) 
+                // to the Ceres problem.
+                problem.AddResidualBlock(
+                    new ceres::AutoDiffCostFunction<PointToPlaneConstraint, 1, 6>(
+                        new PointToPlaneConstraint(sourcePoint, targetPoint, targetNormal, match.weight)
+                    ),
+                    nullptr, poseIncrement.getData()
+                );
+
+            }
+        }
+        */
+    }
+
 };
 
 
@@ -433,10 +350,10 @@ public:
             }
 
             // Estimate the new pose
-            if (m_bUsePointToPlaneConstraints) {
+            if (metric == 1) {
                 estimatedPose = estimatePosePointToPlane(sourcePoints, targetPoints, target.getNormals()) * estimatedPose;
             }
-            else {
+            else if(metric == 0) {
                 estimatedPose = estimatePosePointToPoint(sourcePoints, targetPoints) * estimatedPose;
             }
 
@@ -558,6 +475,18 @@ private:
         Matrix4f estimatedPose = Matrix4f::Identity();
         estimatedPose.block(0, 0, 3, 3) = rotation;
         estimatedPose.block(0, 3, 3, 1) = translation;
+    
+        return estimatedPose;
+    }
+
+    Matrix4f estimatePoseColorICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals) {
+        Matrix4f estimatedPose = Matrix4f::Identity();
+    
+        return estimatedPose;
+    }
+
+    Matrix4f estimatePoseSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals) {
+        Matrix4f estimatedPose = Matrix4f::Identity();
     
         return estimatedPose;
     }
