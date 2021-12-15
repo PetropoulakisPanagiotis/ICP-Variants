@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.6)
 
 set(CMAKE_CONFIGURATION_TYPES Debug Release CACHE TYPE INTERNAL FORCE)
 
-project(exercise_5)
+project(icp_variants)
 
 # Options
 set(LIBRARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Libs CACHE PATH "Path to lib folder")
@@ -51,6 +51,8 @@ set(HEADER_FILES
     FreeImageHelper.h
     DataLoader.h
     BunnyDataLoader.h
+    utils.h
+    constraints.h
 )
 
 set(SOURCE_FILES 
@@ -58,29 +60,29 @@ set(SOURCE_FILES
 )
 
 link_directories(${FreeImage_LIBRARY_DIR})
-add_executable(exercise_5 main.cpp ${HEADER_FILES} ${SOURCE_FILES})
-target_link_libraries(exercise_5 ceres freeimage Eigen3::Eigen)
-target_include_directories(exercise_5 PUBLIC ${EIGEN3_INCLUDE_DIR}
+add_executable(icp_variants main.cpp ${HEADER_FILES} ${SOURCE_FILES})
+target_link_libraries(icp_variants ceres freeimage Eigen3::Eigen)
+target_include_directories(icp_variants PUBLIC ${EIGEN3_INCLUDE_DIR}
     ${FreeImage_INCLUDE_DIR} ${Flann_INCLUDE_DIR})
 
 # On Windows copy dll to executable folder
 if(WIN32)
     # Visual Studio properties
-    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT exercise_5)
-    set_property(TARGET exercise_5 PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/)
+    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT icp_variants)
+    set_property(TARGET icp_variants PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/)
 
     # On Windows copy dll to executable folder
-    add_custom_command(TARGET exercise_5 POST_BUILD
+    add_custom_command(TARGET icp_variants POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${FreeImage_LIBRARY_DIR}/FreeImage.dll"
             ${CMAKE_BINARY_DIR})
     
-    add_custom_command(TARGET exercise_5 POST_BUILD        
+    add_custom_command(TARGET icp_variants POST_BUILD        
         COMMAND ${CMAKE_COMMAND} -E copy_if_different          
             "${GLOG_DLL_PATH_DEBUG}"                           
             ${CMAKE_BINARY_DIR})                     
     
-    add_custom_command(TARGET exercise_5 POST_BUILD
+    add_custom_command(TARGET icp_variants POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${GLOG_DLL_PATH_RELEASE}"
             ${CMAKE_BINARY_DIR})
