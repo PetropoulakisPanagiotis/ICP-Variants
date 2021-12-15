@@ -6,6 +6,7 @@
 #include "SimpleMesh.h"
 #include "ICPOptimizer.h"
 #include "PointCloud.h"
+#include "BunnyDataLoader.h"
 
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
@@ -15,65 +16,10 @@
 #define RUN_SHAPE_ICP		1
 #define RUN_SEQUENCE_ICP	0
 
-void debugCorrespondenceMatching() {
-	// Load the source and target mesh.
-	const std::string filenameSource = std::string("../Data/bunny_part2_trans.off");
-	const std::string filenameTarget = std::string("../Data/bunny_part1.off");
-
-	SimpleMesh sourceMesh;
-	if (!sourceMesh.loadMesh(filenameSource)) {
-		std::cout << "Mesh file wasn't read successfully." << std::endl;
-		return;
-	}
-
-	SimpleMesh targetMesh;
-	if (!targetMesh.loadMesh(filenameTarget)) {
-		std::cout << "Mesh file wasn't read successfully." << std::endl;
-		return;
-	}
-
-	PointCloud source{ sourceMesh };
-	PointCloud target{ targetMesh };
-	
-	// Search for matches using FLANN.
-	std::unique_ptr<NearestNeighborSearch> nearestNeighborSearch = std::make_unique<NearestNeighborSearchFlann>();
-	nearestNeighborSearch->setMatchingMaxDistance(0.0001f);
-	nearestNeighborSearch->buildIndex(target.getPoints());
-	auto matches = nearestNeighborSearch->queryMatches(source.getPoints());
-
-	// Visualize the correspondences with lines.
-	SimpleMesh resultingMesh = SimpleMesh::joinMeshes(sourceMesh, targetMesh, Matrix4f::Identity());
-	auto sourcePoints = source.getPoints();
-	auto targetPoints = target.getPoints();
-
-	for (unsigned i = 0; i < 100; ++i) { // sourcePoints.size()
-		const auto match = matches[i];
-		if (match.idx >= 0) {
-			const auto& sourcePoint = sourcePoints[i];
-			const auto& targetPoint = targetPoints[match.idx];
-			resultingMesh = SimpleMesh::joinMeshes(SimpleMesh::cylinder(sourcePoint, targetPoint, 0.002f, 2, 15), resultingMesh, Matrix4f::Identity());
-		}
-	}
-
-	resultingMesh.writeMesh(std::string("correspondences.off"));
-}
 
 int alignBunnyWithICP() {
 	// Load the source and target mesh.
-	const std::string filenameSource = std::string("../Data/bunny_part2_trans.off");
-	const std::string filenameTarget = std::string("../Data/bunny_part1.off");
-
-	SimpleMesh sourceMesh;
-	if (!sourceMesh.loadMesh(filenameSource)) {
-		std::cout << "Mesh file wasn't read successfully at location: " << filenameSource << std::endl;
-		return -1;
-	}
-
-	SimpleMesh targetMesh;
-	if (!targetMesh.loadMesh(filenameTarget)) {
-		std::cout << "Mesh file wasn't read successfully at location: " << filenameTarget << std::endl;
-		return -1;
-	}
+	BunnyDataLoader bunny_data_loader{};
 
 	// Estimate the pose from source to target mesh with ICP optimization.
 	ICPOptimizer* optimizer = nullptr;
@@ -94,19 +40,18 @@ int alignBunnyWithICP() {
 		optimizer->setNbOfIterations(100);
 	}
 
-	PointCloud source{ sourceMesh };
-	PointCloud target{ targetMesh };
-    
+	// load the sample
+	Sample input = bunny_data_loader.getItem(0);
     Matrix4f estimatedPose = Matrix4f::Identity();
-	optimizer->estimatePose(source, target, estimatedPose);
+	optimizer->estimatePose(input.source, input.target, estimatedPose);
 	
 	// Visualize the resulting joined mesh. We add triangulated spheres for point matches.
-	SimpleMesh resultingMesh = SimpleMesh::joinMeshes(sourceMesh, targetMesh, estimatedPose);
+	SimpleMesh resultingMesh = SimpleMesh::joinMeshes(bunny_data_loader.getSourceMesh(), bunny_data_loader.getTargetMesh(), estimatedPose);
 	if (SHOW_BUNNY_CORRESPONDENCES) {
-		for (const auto& sourcePoint : source.getPoints()) {
+		for (const auto& sourcePoint : input.source.getPoints()) {
 			resultingMesh = SimpleMesh::joinMeshes(SimpleMesh::sphere(sourcePoint, 0.001f), resultingMesh, estimatedPose);
 		}
-		for (const auto& targetPoint : target.getPoints()) {
+		for (const auto& targetPoint : input.target.getPoints()) {
 			resultingMesh = SimpleMesh::joinMeshes(SimpleMesh::sphere(targetPoint, 0.001f, Vector4uc(255, 255, 255, 255)), resultingMesh, Matrix4f::Identity());
 		}
 	}
@@ -119,7 +64,7 @@ int alignBunnyWithICP() {
 }
 
 int reconstructRoom() {
-	std::string filenameIn = std::string("../Data/rgbd_dataset_freiburg1_xyz/");
+	std::string filenameIn = std::string("../../Data/rgbd_dataset_freiburg1_xyz/");
 	std::string filenameBaseOut = std::string("mesh_");
 
 	// Load video
