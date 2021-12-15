@@ -20,6 +20,13 @@ if(WIN32)
         set(FreeImage_INCLUDE_DIR ${LIBRARY_DIR}/FreeImage-3.18.0/Dist/x32/ CACHE PATH "Path to FreeImage header file")
         set(FreeImage_LIBRARY_DIR ${LIBRARY_DIR}/FreeImage-3.18.0/Dist/x32/ CACHE PATH "Path to FreeImage .lib/.dll folder")
     endif()
+
+    ADD_DEFINITIONS(/bigobj)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
+    SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /bigobj")
+    SET(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} /bigobj")
+    SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /bigobj")
+    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /bigobj")
 endif(WIN32)
 
 # Set C++ flags
@@ -42,6 +49,8 @@ set(HEADER_FILES
     ProcrustesAligner.h 
     ICPOptimizer.h 
     FreeImageHelper.h
+    DataLoader.h
+    BunnyDataLoader.h
 )
 
 set(SOURCE_FILES 
