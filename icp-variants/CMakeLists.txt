@@ -11,6 +11,16 @@ set(glog_DIR ${LIBRARY_DIR}/glog-lib/lib/cmake/glog CACHE PATH "Path to installe
 set(Ceres_DIR ${LIBRARY_DIR}/Ceres/CMake CACHE PATH "Path to installed Ceres")
 set(Flann_INCLUDE_DIR ${LIBRARY_DIR}/Flann-1.8.4/ CACHE PATH "Path to Flann source folder")
 
+# Change to this for MacOS
+# set(LIBRARY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../Libs CACHE PATH "Path to lib folder")
+# set(Eigen3_DIR ${LIBRARY_DIR}/Eigen/share/eigen3/cmake CACHE PATH "Path to installed Eigen")
+# set(glog_DIR ${LIBRARY_DIR}/Glog/lib/cmake/glog CACHE PATH "Path to installed glog")
+# set(Ceres_DIR ${LIBRARY_DIR}/Ceres/lib/cmake/Ceres CACHE PATH "Path to installed Ceres")
+# set(Flann_INCLUDE_DIR ${LIBRARY_DIR}/Flann-1.8.4/ CACHE PATH "Path to Flann source folder")
+# set(FreeImage_DIR ${LIBRARY_DIR}/FreeImage CACHE PATH "Path to config Free Image")
+# include_directories(/usr/local/include)
+# link_directories(/usr/local/lib)
+
 # Use pre-compiled libraries on Windows
 if(WIN32)
     if(CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -53,6 +63,7 @@ set(HEADER_FILES
     BunnyDataLoader.h
     utils.h
     constraints.h
+    ConvergenceMeasure.h
 )
 
 set(SOURCE_FILES 
