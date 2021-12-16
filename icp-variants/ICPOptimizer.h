@@ -20,7 +20,7 @@
 class ICPOptimizer {
 public:
     ICPOptimizer() :
-        metric{ 0 },
+        metric{ 0 }, selectionMethod{0}, rejectionMethod{1}, weightingMethod{0},
         m_nIterations{ 20 }, matchingMethod{0}{ 
    
         if(matchingMethod == 0) 
@@ -37,6 +37,18 @@ public:
         this->metric = metric;
     }
 
+    void setSelectionMethod(unsigned int selectionMethod) {
+        this->selectionMethod = selectionMethod;
+    }
+
+    void setRejectionMethod(unsigned int rejectionMethod) {
+        this->rejectionMethod = rejectionMethod;
+    }
+
+    void setWeightinhMethod(unsigned int weightingMethod) {
+        this->weightingMethod = weightingMethod;
+    }
+
     void setMatchingMethod(unsigned int matchingMethod) {
         this->matchingMethod = matchingMethod;
     }
@@ -49,6 +61,9 @@ public:
 
 protected:
     unsigned int metric;
+    unsigned int selectionMethod;
+    unsigned int rejectionMethod;
+    unsigned int weightingMethod;
     unsigned int matchingMethod;
     unsigned m_nIterations;
     std::unique_ptr<NearestNeighborSearch> m_nearestNeighborSearch;
@@ -98,6 +113,43 @@ protected:
             }
         }
     }
+
+    void applyWeights(const PointCloud& source, const PointCloud& target, std::vector<Match> &matches){
+
+        // Constant //
+        if(weightingMethod == 0)
+            return;
+        else if(weightingMethod == 1)
+            buildWeightsBasedOnDistances(source, target, matches);
+        else if(weightingMethod == 2)
+            buildWeightsBasedOnNormals(source, target, matches);
+        else if(weightingMethod == 3)
+            buildWeightsBasedOnColors(source, target, matches);
+    }
+
+    void buildWeightsBasedOnDistances(const PointCloud& source, const PointCloud& target, std::vector<Match> &matches){
+        return;
+    }
+
+    void buildWeightsBasedOnNormals(const PointCloud& source, const PointCloud& target, std::vector<Match> &matches){
+        return;
+    }
+
+    void buildWeightsBasedOnColors(const PointCloud& source, const PointCloud& target, std::vector<Match> &matches){
+        return;
+    }
+
+    void selectPoints(){
+        if(selectionMethod == 0)
+            return;
+        else if(selectionMethod == 1)
+            randomSelection();
+    }
+
+    void randomSelection(){
+        return;
+    }
+
 };
 
 
@@ -109,6 +161,10 @@ public:
     CeresICPOptimizer() {}
 
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) override {
+        
+        // 1. Selection step //
+        selectPoints();
+
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
         m_nearestNeighborSearch->buildIndex(target.getPoints());
 
@@ -129,8 +185,15 @@ public:
             auto transformedPoints = transformPoints(source.getPoints(), estimatedPose);
             auto transformedNormals = transformNormals(source.getNormals(), estimatedPose);
 
+            //2. Matching step //
             auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
-            pruneCorrespondences(transformedNormals, target.getNormals(), matches);
+          
+            // 3. Weighting step // 
+            applyWeights(source, target, matches);
+
+            // 4. Rejection step //
+            if(rejectionMethod == 1)
+                pruneCorrespondences(transformedNormals, target.getNormals(), matches);
 
             clock_t end = clock();
             double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
@@ -314,6 +377,10 @@ public:
     LinearICPOptimizer() {}
 
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) override {
+        
+        // 1. Selection step //
+        selectPoints();
+        
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
         m_nearestNeighborSearch->buildIndex(target.getPoints());
 
@@ -328,8 +395,15 @@ public:
             auto transformedPoints = transformPoints(source.getPoints(), estimatedPose);
             auto transformedNormals = transformNormals(source.getNormals(), estimatedPose);
 
+            // 2. Matching step // 
             auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
-            pruneCorrespondences(transformedNormals, target.getNormals(), matches);
+            
+            // 3. Weighting step // 
+            applyWeights(source, target, matches);
+
+            // 4. Rejection step //
+            if(rejectionMethod == 1)
+                pruneCorrespondences(transformedNormals, target.getNormals(), matches);
 
             clock_t end = clock();
             double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
