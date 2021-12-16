@@ -83,3 +83,34 @@ public:
 private:
     T* m_array;
 };
+
+/* Transform points given a pose
+*/
+std::vector<Vector3f> transformPoints(const std::vector<Vector3f>& sourcePoints, const Matrix4f& pose) {
+    std::vector<Vector3f> transformedPoints;
+    transformedPoints.reserve(sourcePoints.size());
+
+    const auto rotation = pose.block(0, 0, 3, 3);
+    const auto translation = pose.block(0, 3, 3, 1);
+
+    for (const auto& point : sourcePoints) {
+        transformedPoints.push_back(rotation * point + translation);
+    }
+
+    return transformedPoints;
+}
+
+/* Transfrom normals given a pose
+*/
+std::vector<Vector3f> transformNormals(const std::vector<Vector3f>& sourceNormals, const Matrix4f& pose) {
+    std::vector<Vector3f> transformedNormals;
+    transformedNormals.reserve(sourceNormals.size());
+
+    const auto rotation = pose.block(0, 0, 3, 3);
+
+    for (const auto& normal : sourceNormals) {
+        transformedNormals.push_back(rotation.inverse().transpose() * normal);
+    }
+
+    return transformedNormals;
+}
