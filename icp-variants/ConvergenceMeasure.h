@@ -5,20 +5,19 @@
 #include "Eigen.h"
 #include "utils.h"
 
-using namespace std;
 class ConvergenceMeasure
 {
 private:
     /* data */
-    vector<Vector3f> m_sourceCorrespondences;
-    vector<Vector3f> m_targetCorrespondences;
+    std::vector<Vector3f> m_sourceCorrespondences;
+    std::vector<Vector3f> m_targetCorrespondences;
     int numCorrspondeces;
 
 public:
     ConvergenceMeasure() {
         numCorrspondeces = 0;
     };
-    ConvergenceMeasure(const vector<Vector3f>& sourceCorrespondences, const vector<Vector3f>& targetCorrespondences) 
+    ConvergenceMeasure(const std::vector<Vector3f>& sourceCorrespondences, const std::vector<Vector3f>& targetCorrespondences) 
     {       
         ASSERT(sourceCorrespondences.size() == targetCorrespondences.size() &&  sourceCorrespondences.size() > 0
                 && "The number of source and target correspondences must be the same and > 0.");
@@ -44,6 +43,6 @@ public:
             rmse += (transformedPoints[i] - m_targetCorrespondences[i]).squaredNorm();
         }
         rmse /= numCorrspondeces;
-        return sqrt(rmse);
+        return std::sqrt(rmse);
     };
 };
