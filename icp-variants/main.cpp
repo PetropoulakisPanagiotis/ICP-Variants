@@ -7,6 +7,7 @@
 #include "ICPOptimizer.h"
 #include "PointCloud.h"
 #include "BunnyDataLoader.h"
+#include "ConvergenceMeasure.h"
 
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
@@ -33,17 +34,42 @@ int alignBunnyWithICP() {
 	optimizer->setMatchingMaxDistance(0.0003f);
 	if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
-		optimizer->setNbOfIterations(100);
+		optimizer->setNbOfIterations(20);
 	}
 	else {
 		optimizer->setMetric(0);
-		optimizer->setNbOfIterations(100);
+		optimizer->setNbOfIterations(20);
 	}
 
 	// load the sample
 	Sample input = bunny_data_loader.getItem(0);
     Matrix4f estimatedPose = Matrix4f::Identity();
+
+	// Example ground truth correspondences
+	// Fill in the matched points: sourcePoints[i] is matched with targetPoints[i].
+	// 215 294 -0.0512466 0.0956544 0.0436517 -0.051901 0.095458 0.043938
+	// 424 258 -0.0161308 0.0873282 0.056647 -0.016683 0.087267 0.056741
+	// 640 1238 0.0429302 0.045474 0.0291547 0.042297 0.045436 0.029041
+	// 1023 1310 -0.00232282 0.0349611 0.0453906 -0.002826 0.034885 0.045611
+	std::vector<Vector3f> gtSourcePoints;
+	gtSourcePoints.push_back(input.source.getPoints()[215]); // left ear
+	gtSourcePoints.push_back(input.source.getPoints()[424]); // left ear
+	gtSourcePoints.push_back(input.source.getPoints()[640]); // left ear
+	gtSourcePoints.push_back(input.source.getPoints()[1023]); // left ear
+
+	std::vector<Vector3f> gtTargetPoints;
+	gtTargetPoints.push_back(input.target.getPoints()[294]); // left ear
+	gtTargetPoints.push_back(input.target.getPoints()[258]); // left ear
+	gtTargetPoints.push_back(input.target.getPoints()[1238]); // left ear
+	gtTargetPoints.push_back(input.target.getPoints()[1310]); // left ear
+
+	// Create a Convergence Measure
+	auto convergenMearsure = ConvergenceMeasure(gtSourcePoints, gtTargetPoints);
+
 	optimizer->estimatePose(input.source, input.target, estimatedPose);
+	auto alignmentError = convergenMearsure.rmseAlignmentError(estimatedPose);
+	std::cout << "RMSE Alignment error of Final transform: " << alignmentError << std::endl;
+
 	
 	// Visualize the resulting joined mesh. We add triangulated spheres for point matches.
 	SimpleMesh resultingMesh = SimpleMesh::joinMeshes(bunny_data_loader.getSourceMesh(), bunny_data_loader.getTargetMesh(), estimatedPose);
@@ -53,6 +79,14 @@ int alignBunnyWithICP() {
 		}
 		for (const auto& targetPoint : input.target.getPoints()) {
 			resultingMesh = SimpleMesh::joinMeshes(SimpleMesh::sphere(targetPoint, 0.001f, Vector4uc(255, 255, 255, 255)), resultingMesh, Matrix4f::Identity());
+		}
+
+		// Show ground truth correspondences
+		for (const auto& sourcePoint : gtSourcePoints) {
+			resultingMesh = SimpleMesh::joinMeshes(SimpleMesh::sphere(sourcePoint, 0.003f, Vector4uc(0, 255, 0, 255)), resultingMesh, estimatedPose);
+		}
+		for (const auto& targetPoint : gtTargetPoints) {
+			resultingMesh = SimpleMesh::joinMeshes(SimpleMesh::sphere(targetPoint, 0.003f, Vector4uc(255, 0, 255, 0)), resultingMesh, Matrix4f::Identity());
 		}
 	}
 	resultingMesh.writeMesh(std::string("bunny_icp.off"));
