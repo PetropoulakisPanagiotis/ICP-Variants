@@ -13,6 +13,7 @@
 #include "ProcrustesAligner.h"
 #include "utils.h"
 #include "constraints.h"
+#include "selection.h"
 
 /**
  * ICP optimizer - Abstract Base Class
@@ -112,17 +113,6 @@ protected:
         return;
     }
 
-    void selectPoints(){
-        if(selectionMethod == 0)
-            return;
-        else if(selectionMethod == 1)
-            randomSelection();
-    }
-
-    void randomSelection(){
-        return;
-    }
-
 };
 
 
@@ -136,7 +126,7 @@ public:
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) override {
         
         // 1. Selection step //
-        selectPoints();
+        auto sourceSelection = PointSelection(source, selectionMethod);
 
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
         m_nearestNeighborSearch->buildIndex(target.getPoints());
@@ -155,8 +145,9 @@ public:
             std::cout << "Matching points ..." << std::endl;
             clock_t begin = clock();
 
-            auto transformedPoints = transformPoints(source.getPoints(), estimatedPose);
-            auto transformedNormals = transformNormals(source.getNormals(), estimatedPose);
+            // Change source to sourceSelection to do selection.
+            auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
+            auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
 
             //2. Matching step //
             auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
@@ -352,7 +343,10 @@ public:
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) override {
         
         // 1. Selection step //
-        selectPoints();
+        auto sourceSelection = PointSelection(source, selectionMethod);
+
+        
+        // Change PointCloud source to PointSelection source
         
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
         m_nearestNeighborSearch->buildIndex(target.getPoints());
@@ -365,8 +359,9 @@ public:
             std::cout << "Matching points ..." << std::endl;
             clock_t begin = clock();
 
-            auto transformedPoints = transformPoints(source.getPoints(), estimatedPose);
-            auto transformedNormals = transformNormals(source.getNormals(), estimatedPose);
+            // Change source to sourceSelection to do selection.
+            auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
+            auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
 
             // 2. Matching step // 
             auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
