@@ -3,8 +3,10 @@
 #include <vector>
 #include "PointCloud.h"
 #include <iostream>
+#include <random>
 
-enum selection_methods {SELECT_ALL, UNIFORM_SAMPLING, RANDOM_SAMPLING, STABLE_SAMPLING};
+enum selection_methods {SELECT_ALL=0, UNIFORM_SAMPLING, RANDOM_SAMPLING, STABLE_SAMPLING};
+typedef std::mt19937 MyRNG;  // the Mersenne Twister with a popular choice of parameters
 
 
 class PointSelection {
@@ -15,7 +17,8 @@ class PointSelection {
             numPoints = source.getPoints().size();
             m_selectionMode = selectionMode;
             m_selectionProba = selectionProba;
-            selectPointIndexes();
+            if (m_selectionMode > SELECT_ALL)
+                initSampler();
         }
 
         // Get points associated with selected indexes
@@ -24,17 +27,8 @@ class PointSelection {
             if (m_selectionMode == SELECT_ALL) 
                 return m_source.getPoints();
 
-            auto points = m_source.getPoints();
-            // Resample pointIndexes
-            if (m_selectionMode == RANDOM_SAMPLING) {
-                selectRandomPointIndexes(m_selectionProba);
-            }
-
-            std::vector<Vector3f> selectedPoints;
-            for (auto idx: selectedPointIndexes) {
-                selectedPoints.push_back(points[idx]);
-            }
-            return selectedPoints;
+            if (m_selectionMode == UNIFORM_SAMPLING)
+                return m_points;
         }
 
 
@@ -44,38 +38,55 @@ class PointSelection {
             if (m_selectionMode == SELECT_ALL) 
                 return m_source.getNormals();;
 
-            auto normals = m_source.getNormals();
-            std::vector<Vector3f> selectedNormals;
-            for (auto idx: selectedPointIndexes) {
-                selectedNormals.push_back(normals[idx]);
-            }
-            return selectedNormals;
+            if (m_selectionMode == UNIFORM_SAMPLING)
+                return m_normals;
+        }
+
+        void resample() {
+            sampleRandomPoints(m_selectionProba);
         }
 
     private:
         PointCloud m_source;
         std::vector<int> selectedPointIndexes;
         unsigned int numPoints;
+        unsigned int numSelectedPoints;
         unsigned int m_selectionMode;
-        float m_selectionProba;
+        double m_selectionProba;
+        std::vector<Vector3f> m_points;
+        std::vector<Vector3f> m_normals;
+        MyRNG rng;    
 
-        // Fill indexes
-        void selectPointIndexes() {
-            if (m_selectionMode == SELECT_ALL) 
-                selectAllPointIndexes();
+
+        // Init rng
+        void initializeRandomGenerator() {
+            std::random_device rd;
+            rng.seed(rd());
+        }
+
+        // Init sampler
+        void initSampler() {
+            if (m_selectionMode == UNIFORM_SAMPLING || m_selectionMode == RANDOM_SAMPLING) 
+                initializeRandomGenerator();
+            if (m_selectionMode == UNIFORM_SAMPLING) 
+                sampleRandomPoints(m_selectionProba);
         };
 
-        // Fill all indexes
-        void selectAllPointIndexes() {
-            // for (size_t i=0; i < numPoints; ++i) {
-            //     selectedPointIndexes.push_back(i);
-            // }
-            return;
-        }
-
-        void selectRandomPointIndexes(float prob) {
-        }
-
-        void selectRandomPointIndexes(int numSamples) {
+        // Sample random points and populate m_points and m_normals;
+        void sampleRandomPoints(double prob) {
+            std::uniform_real_distribution<double> ureal(0.0, 1.0);
+            numSelectedPoints = 0;
+            m_points.clear();
+            m_normals.clear();
+            for (size_t i=0; i < numPoints; i++) {
+                auto rnumber = ureal(rng);
+                if (rnumber < prob) {
+                    // std::cout << i << " ";
+                    m_points.push_back(m_source.getPoints()[i]);
+                    m_normals.push_back(m_source.getNormals()[i]);
+                    numSelectedPoints++;
+                }
+            }
+            // std::cout << numSelectedPoints << "\n";
         }
 };

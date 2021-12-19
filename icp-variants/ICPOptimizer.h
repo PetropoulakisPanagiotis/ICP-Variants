@@ -38,8 +38,9 @@ public:
         this->metric = metric;
     }
 
-    void setSelectionMethod(unsigned int selectionMethod) {
+    void setSelectionMethod(unsigned int selectionMethod, double proba=1.0) {
         this->selectionMethod = selectionMethod;
+        this->proba = proba;
     }
 
     void setRejectionMethod(unsigned int rejectionMethod) {
@@ -63,6 +64,7 @@ public:
 protected:
     unsigned int metric;
     unsigned int selectionMethod;
+    double proba;
     unsigned int rejectionMethod;
     unsigned int weightingMethod;
     unsigned int matchingMethod;
@@ -126,7 +128,7 @@ public:
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) override {
         
         // 1. Selection step //
-        auto sourceSelection = PointSelection(source, selectionMethod);
+        auto sourceSelection = PointSelection(source, selectionMethod, proba);
 
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
         m_nearestNeighborSearch->buildIndex(target.getPoints());
@@ -148,6 +150,7 @@ public:
             // Change source to sourceSelection to do selection.
             auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
             auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
+            // std::cout << "Num points " << transformedPoints.size() << std::endl;
 
             //2. Matching step //
             auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
@@ -343,7 +346,7 @@ public:
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) override {
         
         // 1. Selection step //
-        auto sourceSelection = PointSelection(source, selectionMethod);
+        auto sourceSelection = PointSelection(source, selectionMethod, proba);
 
         
         // Change PointCloud source to PointSelection source
