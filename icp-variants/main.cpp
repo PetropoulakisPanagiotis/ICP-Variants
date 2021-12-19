@@ -8,6 +8,7 @@
 #include "PointCloud.h"
 #include "BunnyDataLoader.h"
 #include "ConvergenceMeasure.h"
+#include "selection.h"
 
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
@@ -40,6 +41,9 @@ int alignBunnyWithICP() {
 		optimizer->setMetric(0);
 		optimizer->setNbOfIterations(20);
 	}
+
+	// TODO: Test uniform sampling
+	optimizer->setSelectionMethod(UNIFORM_SAMPLING, 0.5);
 
 	// load the sample
 	Sample input = bunny_data_loader.getItem(0);
