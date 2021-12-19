@@ -44,6 +44,7 @@ int alignBunnyWithICP() {
 
 	// TODO: Test uniform sampling
 	optimizer->setSelectionMethod(UNIFORM_SAMPLING, 0.5);
+	// optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.5); // Resample points each iteration.
 
 	// load the sample
 	Sample input = bunny_data_loader.getItem(0);

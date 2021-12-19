@@ -148,9 +148,11 @@ public:
             clock_t begin = clock();
 
             // Change source to sourceSelection to do selection.
+            if (selectionMethod == RANDOM_SAMPLING) // Resample each iteration
+                sourceSelection.resample();
             auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
             auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
-            // std::cout << "Num points " << transformedPoints.size() << std::endl;
+            std::cout << "Number of source points to match = " << transformedPoints.size() << std::endl;
 
             //2. Matching step //
             auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
@@ -363,8 +365,11 @@ public:
             clock_t begin = clock();
 
             // Change source to sourceSelection to do selection.
+            if (selectionMethod == RANDOM_SAMPLING) // Resample each iteration
+                sourceSelection.resample();
             auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
             auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
+            std::cout << "Number of source points to match = " << transformedPoints.size() << std::endl;
 
             // 2. Matching step // 
             auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
