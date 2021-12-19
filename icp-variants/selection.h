@@ -27,7 +27,7 @@ class PointSelection {
             if (m_selectionMode == SELECT_ALL) 
                 return m_source.getPoints();
 
-            if (m_selectionMode == UNIFORM_SAMPLING)
+            if (m_selectionMode == UNIFORM_SAMPLING or m_selectionMode == RANDOM_SAMPLING)
                 return m_points;
         }
 
@@ -38,11 +38,12 @@ class PointSelection {
             if (m_selectionMode == SELECT_ALL) 
                 return m_source.getNormals();;
 
-            if (m_selectionMode == UNIFORM_SAMPLING)
+            if (m_selectionMode == UNIFORM_SAMPLING or m_selectionMode == RANDOM_SAMPLING)
                 return m_normals;
         }
 
         void resample() {
+            std::cout << "Resample points.\n";
             sampleRandomPoints(m_selectionProba);
         }
 
@@ -78,6 +79,8 @@ class PointSelection {
             numSelectedPoints = 0;
             m_points.clear();
             m_normals.clear();
+
+            // Sample
             for (size_t i=0; i < numPoints; i++) {
                 auto rnumber = ureal(rng);
                 if (rnumber < prob) {
@@ -87,6 +90,6 @@ class PointSelection {
                     numSelectedPoints++;
                 }
             }
-            // std::cout << numSelectedPoints << "\n";
+            std::cout << "\tNumber points samples " << m_points.size() << "\n";
         }
 };
