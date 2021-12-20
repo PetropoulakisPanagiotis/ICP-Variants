@@ -13,6 +13,7 @@
 #include "ProcrustesAligner.h"
 #include "utils.h"
 #include "constraints.h"
+#include "selection.h"
 
 /**
  * ICP optimizer - Abstract Base Class
@@ -37,8 +38,9 @@ public:
         this->metric = metric;
     }
 
-    void setSelectionMethod(unsigned int selectionMethod) {
+    void setSelectionMethod(unsigned int selectionMethod, double proba=1.0) {
         this->selectionMethod = selectionMethod;
+        this->proba = proba;
     }
 
     void setRejectionMethod(unsigned int rejectionMethod) {
@@ -62,6 +64,7 @@ public:
 protected:
     unsigned int metric;
     unsigned int selectionMethod;
+    double proba;
     unsigned int rejectionMethod;
     unsigned int weightingMethod;
     unsigned int matchingMethod;
@@ -112,17 +115,6 @@ protected:
         return;
     }
 
-    void selectPoints(){
-        if(selectionMethod == 0)
-            return;
-        else if(selectionMethod == 1)
-            randomSelection();
-    }
-
-    void randomSelection(){
-        return;
-    }
-
 };
 
 
@@ -136,7 +128,7 @@ public:
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) override {
         
         // 1. Selection step //
-        selectPoints();
+        auto sourceSelection = PointSelection(source, selectionMethod, proba);
 
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
         m_nearestNeighborSearch->buildIndex(target.getPoints());
@@ -155,8 +147,12 @@ public:
             std::cout << "Matching points ..." << std::endl;
             clock_t begin = clock();
 
-            auto transformedPoints = transformPoints(source.getPoints(), estimatedPose);
-            auto transformedNormals = transformNormals(source.getNormals(), estimatedPose);
+            // Change source to sourceSelection to do selection.
+            if (selectionMethod == RANDOM_SAMPLING) // Resample each iteration
+                sourceSelection.resample();
+            auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
+            auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
+            std::cout << "Number of source points to match = " << transformedPoints.size() << std::endl;
 
             //2. Matching step //
             auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
@@ -352,7 +348,10 @@ public:
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) override {
         
         // 1. Selection step //
-        selectPoints();
+        auto sourceSelection = PointSelection(source, selectionMethod, proba);
+
+        
+        // Change PointCloud source to PointSelection source
         
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
         m_nearestNeighborSearch->buildIndex(target.getPoints());
@@ -365,8 +364,12 @@ public:
             std::cout << "Matching points ..." << std::endl;
             clock_t begin = clock();
 
-            auto transformedPoints = transformPoints(source.getPoints(), estimatedPose);
-            auto transformedNormals = transformNormals(source.getNormals(), estimatedPose);
+            // Change source to sourceSelection to do selection.
+            if (selectionMethod == RANDOM_SAMPLING) // Resample each iteration
+                sourceSelection.resample();
+            auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
+            auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
+            std::cout << "Number of source points to match = " << transformedPoints.size() << std::endl;
 
             // 2. Matching step // 
             auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
