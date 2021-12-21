@@ -2,6 +2,8 @@
 #include <flann/flann.hpp>
 #include "Eigen.h"
 
+#define MAX_DISTANCE = 0.005f;
+
 struct Match {
 	int idx;
 	float weight;
@@ -21,7 +23,7 @@ public:
 protected:
 	float m_maxDistance;
 
-	NearestNeighborSearch() : m_maxDistance{ 0.005f } {}
+	NearestNeighborSearch() : m_maxDistance{ MAX_DISTANCE } {}
 };
 
 
