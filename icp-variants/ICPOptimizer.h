@@ -49,7 +49,7 @@ public:
         this->rejectionMethod = rejectionMethod;
     }
 
-    void setWeightinhMethod(unsigned int weightingMethod) {
+    void setWeightingMethod(unsigned int weightingMethod) {
         this->weightingMethod = weightingMethod;
     }
 
@@ -71,7 +71,7 @@ protected:
     unsigned int weightingMethod;
     unsigned int matchingMethod;
     unsigned m_nIterations;
-    float maxDistance;
+    float maxDistance; // Sqaure distance
     std::unique_ptr<NearestNeighborSearch> m_nearestNeighborSearch;
 
     void pruneCorrespondences(const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals, std::vector<Match>& matches) {
@@ -142,7 +142,11 @@ public:
             auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
           
             // 3. Weighting step // 
-            weightingStep.applyWeights(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), matches);
+            std::vector<Vector3uc>  transformedColors; // Dummy - empty 
+            std::vector<Vector3uc>  targetColors; // Dummy - empty 
+            
+            weightingStep.applyWeights(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), 
+                                       transformedColors, targetColors, matches);
 
             // 4. Rejection step //
             if(rejectionMethod == 1)
@@ -226,7 +230,7 @@ private:
             if (match.idx >= 0) {
                 const auto& sourcePoint = sourcePoints[i];
                 const auto& targetPoint = targetPoints[match.idx];
-
+                
                 if (!sourcePoint.allFinite() || !targetPoint.allFinite())
                     continue;
 
@@ -363,7 +367,11 @@ public:
             auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
             
             // 3. Weighting step // 
-            weightingStep.applyWeights(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), matches);
+            std::vector<Vector3uc>  transformedColors; // Dummy - empty 
+            std::vector<Vector3uc>  targetColors; // Dummy - empty 
+            
+            weightingStep.applyWeights(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), 
+                                       transformedColors, targetColors, matches);
 
             // 4. Rejection step //
             if(rejectionMethod == 1)

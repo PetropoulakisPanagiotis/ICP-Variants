@@ -32,6 +32,7 @@ int alignBunnyWithICP() {
 		optimizer = new CeresICPOptimizer();
 	}
 	
+    // Square distance //
 	optimizer->setMatchingMaxDistance(0.0003f);
 	if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
@@ -46,7 +47,7 @@ int alignBunnyWithICP() {
 	optimizer->setSelectionMethod(UNIFORM_SAMPLING, 0.5);
 	// optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.5); // Resample points each iteration.
 
-    optimizer->setWeightinhMethod(DISTANCE_WEIGHTING);
+    optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
 
 	// load the sample
 	Sample input = bunny_data_loader.getItem(0);
