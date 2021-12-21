@@ -2,7 +2,7 @@
 #include <flann/flann.hpp>
 #include "Eigen.h"
 
-#define MAX_DISTANCE = 0.005f;
+#define MAX_DISTANCE 0.005f
 
 struct Match {
 	int idx;
@@ -15,6 +15,10 @@ public:
 
 	virtual void setMatchingMaxDistance(float maxDistance) {
 		m_maxDistance = maxDistance;
+	}
+
+    float getMatchingMaxDistance(float maxDistance) {
+		return m_maxDistance;
 	}
 
 	virtual void buildIndex(const std::vector<Eigen::Vector3f>& targetPoints) = 0;
@@ -151,7 +155,7 @@ public:
 		matches.reserve(nMatches);
 
 		for (int i = 0; i < nMatches; ++i) {
-			if (*distances[i] <= m_maxDistance)
+			if (*distances[i] <= m_maxDistance)        
 				matches.push_back(Match{ *indices[i], 1.f });
 			else
 				matches.push_back(Match{ -1, 0.f });
