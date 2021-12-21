@@ -27,7 +27,7 @@ class PointSelection {
             if (m_selectionMode == SELECT_ALL) 
                 return m_source.getPoints();
 
-            if (m_selectionMode == UNIFORM_SAMPLING or m_selectionMode == RANDOM_SAMPLING)
+            if (m_selectionMode == UNIFORM_SAMPLING || m_selectionMode == RANDOM_SAMPLING)
                 return m_points;
         }
 
@@ -38,7 +38,7 @@ class PointSelection {
             if (m_selectionMode == SELECT_ALL) 
                 return m_source.getNormals();;
 
-            if (m_selectionMode == UNIFORM_SAMPLING or m_selectionMode == RANDOM_SAMPLING)
+            if (m_selectionMode == UNIFORM_SAMPLING || m_selectionMode == RANDOM_SAMPLING)
                 return m_normals;
         }
 
