@@ -46,6 +46,8 @@ int alignBunnyWithICP() {
 	optimizer->setSelectionMethod(UNIFORM_SAMPLING, 0.5);
 	// optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.5); // Resample points each iteration.
 
+    optimizer->setWeightinhMethod(DISTANCE_WEIGHTING);
+
 	// load the sample
 	Sample input = bunny_data_loader.getItem(0);
     Matrix4f estimatedPose = Matrix4f::Identity();
