@@ -191,7 +191,9 @@ int reconstructRoom() {
 int alignETH() {
 	// Load the source and target mesh.
 	ETHDataLoader eth_data_loader{};
-
+	Sample s = eth_data_loader.getItem(0);
+	s.source.writeToFile("source.ply");
+	s.target.writeToFile("target.ply");
 	return 0;
 }
 

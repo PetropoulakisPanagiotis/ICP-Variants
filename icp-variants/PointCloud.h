@@ -1,5 +1,6 @@
 #pragma once
 #include <pcl/point_types.h>
+#include <pcl/io/ply_io.h>
 #include <pcl/features/normal_3d.h>
 #include "SimpleMesh.h"
 #include "Eigen.h"
@@ -211,6 +212,26 @@ public:
         //	file << m_points[i].x() << " " << m_points[i].y() << " " << m_points[i].z() << std::endl;
         //file.close();
 
+        return true;
+    }
+
+    bool writeToFile(const std::string& filename) {
+        pcl::PointCloud<pcl::PointXYZINormal> cloud_out;
+        cloud_out.width = 1;
+        cloud_out.height = m_points.size();
+        cloud_out.points.resize(m_points.size());
+        for (int i = 0; i < m_points.size(); i++)
+        {
+            cloud_out.points[i].x = m_points[i].x();
+            cloud_out.points[i].y = m_points[i].y();
+            cloud_out.points[i].z = m_points[i].z();
+            cloud_out.points[i].intensity = 1;
+            cloud_out.points[i].normal_x = m_normals[i].x();
+            cloud_out.points[i].normal_y = m_normals[i].y();
+            cloud_out.points[i].normal_z = m_normals[i].z();
+        }
+
+        pcl::io::savePLYFile(filename, cloud_out);
         return true;
     }
 
