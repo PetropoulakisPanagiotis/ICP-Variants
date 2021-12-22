@@ -51,6 +51,10 @@ set(CMAKE_CXX_STANDARD 14)
 #find_package(nanoflann REQUIRED)
 find_package(Ceres REQUIRED)
 find_package(glog REQUIRED)
+find_package(PCL 1.3 REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 get_target_property(GLOG_DLL_PATH_DEBUG glog::glog IMPORTED_LOCATION_DEBUG)
 get_target_property(GLOG_DLL_PATH_RELEASE glog::glog IMPORTED_LOCATION_RELEASE)
 
@@ -79,7 +83,7 @@ set(SOURCE_FILES
 
 link_directories(${FreeImage_LIBRARY_DIR})
 add_executable(icp_variants main.cpp ${HEADER_FILES} ${SOURCE_FILES})
-target_link_libraries(icp_variants ceres freeimage Eigen3::Eigen)
+target_link_libraries(icp_variants ceres freeimage Eigen3::Eigen ${PCL_LIBRARIES})
 target_include_directories(icp_variants PUBLIC ${EIGEN3_INCLUDE_DIR}
     ${FreeImage_INCLUDE_DIR} ${Flann_INCLUDE_DIR})
 
