@@ -70,6 +70,7 @@ set(HEADER_FILES
     utils.h
     constraints.h
     ConvergenceMeasure.h
+    TimeMeasure.h
     selection.h
 )
 
