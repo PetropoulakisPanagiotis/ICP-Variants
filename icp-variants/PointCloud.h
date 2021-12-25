@@ -1,4 +1,7 @@
 #pragma once
+#include <pcl/point_types.h>
+#include <pcl/io/ply_io.h>
+#include <pcl/features/normal_3d.h>
 #include "SimpleMesh.h"
 #include "Eigen.h"
 
@@ -30,6 +33,41 @@ public:
         }
         for (size_t i = 0; i < nVertices; i++) {
             m_normals[i].normalize();
+        }
+    }
+
+    PointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr src) {
+        std::cout << "Creating normals" << std::endl;
+        // Create the normal estimation class, and pass the input dataset to it
+        pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+        ne.setInputCloud(src);
+        // Create an empty kdtree representation, and pass it to the normal estimation object.
+        // Its content will be filled inside the object, based on the given input dataset (as no other search surface is given).
+        pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
+        ne.setSearchMethod(tree);
+        // Output datasets
+        pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
+        // Use 5 neighbours each
+        ne.setKSearch(5);
+        // Compute the features
+        ne.compute(*cloud_normals);
+
+        m_normals = std::vector<Vector3f>(cloud_normals->points.size(), Vector3f::Zero());
+        m_points = std::vector<Vector3f>(cloud_normals->points.size(), Vector3f::Zero());
+        std::cout << "Copying points and normals" << std::endl;
+        // Assignment part
+        for (int i = 0; i < cloud_normals->points.size(); i++)
+        {
+            m_points[i] = Vector3f{
+                src->points[i].x,
+                src->points[i].y,
+                src->points[i].z
+            };
+            m_normals[i] = Vector3f{
+                cloud_normals->points[i].normal_x,
+                cloud_normals->points[i].normal_y,
+                cloud_normals->points[i].normal_z
+            };
         }
     }
 
@@ -177,6 +215,26 @@ public:
         return true;
     }
 
+    bool writeToFile(const std::string& filename) {
+        pcl::PointCloud<pcl::PointXYZINormal> cloud_out;
+        cloud_out.width = 1;
+        cloud_out.height = m_points.size();
+        cloud_out.points.resize(m_points.size());
+        for (int i = 0; i < m_points.size(); i++)
+        {
+            cloud_out.points[i].x = m_points[i].x();
+            cloud_out.points[i].y = m_points[i].y();
+            cloud_out.points[i].z = m_points[i].z();
+            cloud_out.points[i].intensity = 1;
+            cloud_out.points[i].normal_x = m_normals[i].x();
+            cloud_out.points[i].normal_y = m_normals[i].y();
+            cloud_out.points[i].normal_z = m_normals[i].z();
+        }
+
+        pcl::io::savePLYFile(filename, cloud_out);
+        return true;
+    }
+
     std::vector<Vector3f>& getPoints() {
         return m_points;
     }
@@ -220,5 +278,4 @@ private:
     std::vector<Vector3f> m_points;
     std::vector<Vector3f> m_normals;
     std::vector<Vector3uc> m_colors;
-
 };

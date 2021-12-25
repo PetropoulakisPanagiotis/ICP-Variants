@@ -21,7 +21,7 @@ class WeightingMethod{
 
         float calculateDistancesWeight(const Vector3f& sourcePoint, const Vector3f& targetPoint){
             Vector3f diff = sourcePoint - targetPoint;
-            
+
             return 1 - ((diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2]) / this->maxDistance);
         }
 
@@ -85,9 +85,8 @@ class WeightingMethod{
                 if(matchNewWeight > 1 || matchNewWeight < 0){
                     std::cout << "ops\n";
                 }
-
                 std::cout << matchNewWeight << std::endl;
-                 */
+                */
 
             } // End for
         }
