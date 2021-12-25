@@ -1,12 +1,17 @@
 #include <iostream>
 #include <fstream>
 
+
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
+
 #include "Eigen.h"
 #include "VirtualSensor.h"
 #include "SimpleMesh.h"
 #include "ICPOptimizer.h"
 #include "PointCloud.h"
 #include "BunnyDataLoader.h"
+#include "ETHDataLoader.h"
 #include "ConvergenceMeasure.h"
 #include "selection.h"
 
@@ -15,8 +20,9 @@
 #define USE_POINT_TO_PLANE	1
 #define USE_LINEAR_ICP		0
 
-#define RUN_SHAPE_ICP		1
+#define RUN_SHAPE_ICP		0
 #define RUN_SEQUENCE_ICP	0
+#define RUN_ETH_ICP			1
 
 
 int alignBunnyWithICP() {
@@ -182,12 +188,23 @@ int reconstructRoom() {
 	return 0;
 }
 
+int alignETH() {
+	// Load the source and target mesh.
+	ETHDataLoader eth_data_loader{};
+	Sample s = eth_data_loader.getItem(0);
+	s.source.writeToFile("source.ply");
+	s.target.writeToFile("target.ply");
+	return 0;
+}
+
 int main() {
 	int result = 0;
 	if (RUN_SHAPE_ICP)
 		result += alignBunnyWithICP();
 	if (RUN_SEQUENCE_ICP)
 		result += reconstructRoom();
+	if (RUN_ETH_ICP)
+		result += alignETH();
 
 	return result;
 }
