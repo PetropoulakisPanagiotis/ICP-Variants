@@ -108,6 +108,13 @@ protected:
     }
 
     void buildWeightsBasedOnNormals(const PointCloud& source, const PointCloud& target, std::vector<Match> &matches){
+        std::vector<Vector3f> n1 = source.getNormals();
+        std::vector<Vector3f> n2 = target.getNormals();
+
+        for (size_t i = 0; i < n1.size(); i++) {
+            matches[i].weight = n1[i].dot(n2[i]);
+        }
+
         return;
     }
 
