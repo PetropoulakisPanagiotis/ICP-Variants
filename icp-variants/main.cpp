@@ -1,12 +1,17 @@
 #include <iostream>
 #include <fstream>
 
+
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
+
 #include "Eigen.h"
 #include "VirtualSensor.h"
 #include "SimpleMesh.h"
 #include "ICPOptimizer.h"
 #include "PointCloud.h"
 #include "BunnyDataLoader.h"
+#include "ETHDataLoader.h"
 #include "ConvergenceMeasure.h"
 #include "selection.h"
 #include "TimeMeasure.h"
@@ -18,6 +23,7 @@
 
 #define RUN_SHAPE_ICP		1
 #define RUN_SEQUENCE_ICP	0
+#define RUN_ETH_ICP			0
 
 
 int alignBunnyWithICP() {
@@ -33,6 +39,7 @@ int alignBunnyWithICP() {
 		optimizer = new CeresICPOptimizer();
 	}
 	
+    // Square distance //
 	optimizer->setMatchingMaxDistance(0.0003f);
 	if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
@@ -44,8 +51,12 @@ int alignBunnyWithICP() {
 	}
 
 	// TODO: Test uniform sampling
-	optimizer->setSelectionMethod(UNIFORM_SAMPLING, 0.5);
+	//optimizer->setSelectionMethod(UNIFORM_SAMPLING, 0.5);
+	optimizer->setSelectionMethod(SELECT_ALL);
 	// optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.5); // Resample points each iteration.
+
+    // Weighting step //
+    optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
 
 	// load the sample
 	Sample input = bunny_data_loader.getItem(0);
@@ -194,12 +205,23 @@ int reconstructRoom() {
 	return 0;
 }
 
+int alignETH() {
+	// Load the source and target mesh.
+	ETHDataLoader eth_data_loader{};
+	Sample s = eth_data_loader.getItem(0);
+	s.source.writeToFile("source.ply");
+	s.target.writeToFile("target.ply");
+	return 0;
+}
+
 int main() {
 	int result = 0;
 	if (RUN_SHAPE_ICP)
 		result += alignBunnyWithICP();
 	if (RUN_SEQUENCE_ICP)
 		result += reconstructRoom();
+	if (RUN_ETH_ICP)
+		result += alignETH();
 
 	return result;
 }
