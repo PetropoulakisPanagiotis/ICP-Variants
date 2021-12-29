@@ -2,6 +2,8 @@
 #include <flann/flann.hpp>
 #include "Eigen.h"
 
+#define MAX_DISTANCE 0.005f
+
 struct Match {
 	int idx;
 	float weight;
@@ -15,13 +17,17 @@ public:
 		m_maxDistance = maxDistance;
 	}
 
+    float getMatchingMaxDistance(float maxDistance) {
+		return m_maxDistance;
+	}
+
 	virtual void buildIndex(const std::vector<Eigen::Vector3f>& targetPoints) = 0;
 	virtual std::vector<Match> queryMatches(const std::vector<Vector3f>& transformedPoints) = 0;
 
 protected:
 	float m_maxDistance;
 
-	NearestNeighborSearch() : m_maxDistance{ 0.005f } {}
+	NearestNeighborSearch() : m_maxDistance{ MAX_DISTANCE } {}
 };
 
 
@@ -148,8 +154,9 @@ public:
 		std::vector<Match> matches;
 		matches.reserve(nMatches);
 
+        std::cout << m_maxDistance << std::endl;
 		for (int i = 0; i < nMatches; ++i) {
-			if (*distances[i] <= m_maxDistance)
+			if (*distances[i] <= m_maxDistance)        
 				matches.push_back(Match{ *indices[i], 1.f });
 			else
 				matches.push_back(Match{ -1, 0.f });
