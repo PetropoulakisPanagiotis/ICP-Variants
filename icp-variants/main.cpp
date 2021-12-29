@@ -14,6 +14,7 @@
 #include "ETHDataLoader.h"
 #include "ConvergenceMeasure.h"
 #include "selection.h"
+#include "TimeMeasure.h"
 
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
@@ -82,9 +83,20 @@ int alignBunnyWithICP() {
 	// Create a Convergence Measure
 	auto convergenMearsure = ConvergenceMeasure(gtSourcePoints, gtTargetPoints);
 
+	// Create a Time Profiler
+	auto timeMeasure = TimeMeasure();
+	optimizer->setTimeMeasure(timeMeasure);
+	
+	// Estimate pose
 	optimizer->estimatePose(input.source, input.target, estimatedPose);
+	
+	// Calculate convergence measure
 	auto alignmentError = convergenMearsure.rmseAlignmentError(estimatedPose);
 	std::cout << "RMSE Alignment error of Final transform: " << alignmentError << std::endl;
+
+	// Calculate time
+	timeMeasure.calculateIterationTime();
+
 
 	
 	// Visualize the resulting joined mesh. We add triangulated spheres for point matches.
