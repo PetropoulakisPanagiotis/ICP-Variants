@@ -75,6 +75,7 @@ set(HEADER_FILES
     constraints.h
     ConvergenceMeasure.h
     selection.h
+    weighting.h
 )
 
 set(SOURCE_FILES 

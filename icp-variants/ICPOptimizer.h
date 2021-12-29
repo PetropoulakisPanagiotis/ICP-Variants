@@ -14,6 +14,7 @@
 #include "utils.h"
 #include "constraints.h"
 #include "selection.h"
+#include "weighting.h"
 
 /**
  * ICP optimizer - Abstract Base Class
@@ -22,7 +23,7 @@ class ICPOptimizer {
 public:
     ICPOptimizer() :
         metric{ 0 }, selectionMethod{0}, rejectionMethod{1}, weightingMethod{0},
-        m_nIterations{ 20 }, matchingMethod{0}{ 
+        m_nIterations{ 20 }, matchingMethod{0}, maxDistance{0.0003f}{ 
    
         if(matchingMethod == 0) 
             m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchFlann>();
@@ -32,6 +33,7 @@ public:
 
     void setMatchingMaxDistance(float maxDistance) {
         m_nearestNeighborSearch->setMatchingMaxDistance(maxDistance);
+        this->maxDistance = maxDistance;
     }
 
     void setMetric(unsigned int metric) {
@@ -47,7 +49,7 @@ public:
         this->rejectionMethod = rejectionMethod;
     }
 
-    void setWeightinhMethod(unsigned int weightingMethod) {
+    void setWeightingMethod(unsigned int weightingMethod) {
         this->weightingMethod = weightingMethod;
     }
 
@@ -69,6 +71,7 @@ protected:
     unsigned int weightingMethod;
     unsigned int matchingMethod;
     unsigned m_nIterations;
+    float maxDistance; // Sqaure distance
     std::unique_ptr<NearestNeighborSearch> m_nearestNeighborSearch;
 
     void pruneCorrespondences(const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals, std::vector<Match>& matches) {
@@ -89,32 +92,6 @@ protected:
             }
         }
     }
-
-    void applyWeights(const PointCloud& source, const PointCloud& target, std::vector<Match> &matches){
-
-        // Constant //
-        if(weightingMethod == 0)
-            return;
-        else if(weightingMethod == 1)
-            buildWeightsBasedOnDistances(source, target, matches);
-        else if(weightingMethod == 2)
-            buildWeightsBasedOnNormals(source, target, matches);
-        else if(weightingMethod == 3)
-            buildWeightsBasedOnColors(source, target, matches);
-    }
-
-    void buildWeightsBasedOnDistances(const PointCloud& source, const PointCloud& target, std::vector<Match> &matches){
-        return;
-    }
-
-    void buildWeightsBasedOnNormals(const PointCloud& source, const PointCloud& target, std::vector<Match> &matches){
-        return;
-    }
-
-    void buildWeightsBasedOnColors(const PointCloud& source, const PointCloud& target, std::vector<Match> &matches){
-        return;
-    }
-
 };
 
 
@@ -127,8 +104,13 @@ public:
 
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) override {
         
-        // 1. Selection step //
+        // Initialize selection step //
         auto sourceSelection = PointSelection(source, selectionMethod, proba);
+
+        // Initialize weighting step //
+        auto weightingStep = WeightingMethod(this->weightingMethod, this->maxDistance);
+
+        // Initialize matching step // 
 
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
         m_nearestNeighborSearch->buildIndex(target.getPoints());
@@ -147,9 +129,11 @@ public:
             std::cout << "Matching points ..." << std::endl;
             clock_t begin = clock();
 
+            // 1. Selection Step // 
             // Change source to sourceSelection to do selection.
             if (selectionMethod == RANDOM_SAMPLING) // Resample each iteration
                 sourceSelection.resample();
+            
             auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
             auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
             std::cout << "Number of source points to match = " << transformedPoints.size() << std::endl;
@@ -158,7 +142,11 @@ public:
             auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
           
             // 3. Weighting step // 
-            applyWeights(source, target, matches);
+            std::vector<Vector3uc>  transformedColors; // Dummy - empty 
+            std::vector<Vector3uc>  targetColors; // Dummy - empty 
+            
+            weightingStep.applyWeights(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), 
+                                       transformedColors, targetColors, matches);
 
             // 4. Rejection step //
             if(rejectionMethod == 1)
@@ -242,7 +230,7 @@ private:
             if (match.idx >= 0) {
                 const auto& sourcePoint = sourcePoints[i];
                 const auto& targetPoint = targetPoints[match.idx];
-
+                
                 if (!sourcePoint.allFinite() || !targetPoint.allFinite())
                     continue;
 
@@ -347,9 +335,11 @@ public:
 
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) override {
         
-        // 1. Selection step //
+        // Initialize selection step //
         auto sourceSelection = PointSelection(source, selectionMethod, proba);
 
+        // Initialize weightingStep step //
+        auto weightingStep = WeightingMethod(this->weightingMethod, this->maxDistance);
         
         // Change PointCloud source to PointSelection source
         
@@ -364,9 +354,11 @@ public:
             std::cout << "Matching points ..." << std::endl;
             clock_t begin = clock();
 
+            // 1. Selection step //
             // Change source to sourceSelection to do selection.
             if (selectionMethod == RANDOM_SAMPLING) // Resample each iteration
                 sourceSelection.resample();
+            
             auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
             auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
             std::cout << "Number of source points to match = " << transformedPoints.size() << std::endl;
@@ -375,7 +367,11 @@ public:
             auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
             
             // 3. Weighting step // 
-            applyWeights(source, target, matches);
+            std::vector<Vector3uc>  transformedColors; // Dummy - empty 
+            std::vector<Vector3uc>  targetColors; // Dummy - empty 
+            
+            weightingStep.applyWeights(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), 
+                                       transformedColors, targetColors, matches);
 
             // 4. Rejection step //
             if(rejectionMethod == 1)
