@@ -20,9 +20,9 @@
 #define USE_POINT_TO_PLANE	1
 #define USE_LINEAR_ICP		0
 
-#define RUN_SHAPE_ICP		0
+#define RUN_SHAPE_ICP		1
 #define RUN_SEQUENCE_ICP	0
-#define RUN_ETH_ICP			1
+#define RUN_ETH_ICP			0
 
 
 int alignBunnyWithICP() {
@@ -38,6 +38,7 @@ int alignBunnyWithICP() {
 		optimizer = new CeresICPOptimizer();
 	}
 	
+    // Square distance //
 	optimizer->setMatchingMaxDistance(0.0003f);
 	if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
@@ -49,8 +50,12 @@ int alignBunnyWithICP() {
 	}
 
 	// TODO: Test uniform sampling
-	optimizer->setSelectionMethod(UNIFORM_SAMPLING, 0.5);
+	//optimizer->setSelectionMethod(UNIFORM_SAMPLING, 0.5);
+	optimizer->setSelectionMethod(SELECT_ALL);
 	// optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.5); // Resample points each iteration.
+
+    // Weighting step //
+    optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
 
 	// load the sample
 	Sample input = bunny_data_loader.getItem(0);

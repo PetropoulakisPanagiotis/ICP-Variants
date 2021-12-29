@@ -250,6 +250,14 @@ public:
     const std::vector<Vector3f>& getNormals() const {
         return m_normals;
     }
+    
+    std::vector<Vector3uc>& getColors() {
+        return m_colors;
+    }
+
+    const std::vector<Vector3uc>& getColors() const {
+        return m_colors;
+    }
 
     unsigned int getClosestPoint(Vector3f& p) {
         unsigned int idx = 0;
@@ -269,5 +277,5 @@ public:
 private:
     std::vector<Vector3f> m_points;
     std::vector<Vector3f> m_normals;
-
+    std::vector<Vector3uc> m_colors;
 };
