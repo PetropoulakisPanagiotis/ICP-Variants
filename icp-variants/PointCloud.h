@@ -34,6 +34,7 @@ public:
         for (size_t i = 0; i < nVertices; i++) {
             m_normals[i].normalize();
         }
+    
     }
 
     PointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr src) {

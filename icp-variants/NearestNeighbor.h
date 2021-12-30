@@ -23,6 +23,7 @@ public:
 
 	virtual void buildIndex(const std::vector<Eigen::Vector3f>& targetPoints) = 0;
 	virtual std::vector<Match> queryMatches(const std::vector<Vector3f>& transformedPoints) = 0;
+	virtual void setCameraParams(const Eigen::Matrix3f& depthIntrinsics, const unsigned width, const unsigned height) = 0;
 
 protected:
 	float m_maxDistance;
@@ -56,6 +57,11 @@ public:
 
 		return matches;
 	}
+    
+    void setCameraParams(const Eigen::Matrix3f& depthIntrinsics, const unsigned width, const unsigned height){
+        return;
+    }
+
 
 private:
 	std::vector<Eigen::Vector3f> m_points;
@@ -183,6 +189,10 @@ public:
 		return matches;
 	}
 
+    void setCameraParams(const Eigen::Matrix3f& depthIntrinsics, const unsigned width, const unsigned height){
+        return;
+    }
+
 private:
 	int m_nTrees;
 	flann::Index<flann::L2<float>>* m_index;
@@ -191,22 +201,66 @@ private:
 
 class NearestNeighborSearchProjective : public NearestNeighborSearch {
 public:
-	NearestNeighborSearchProjective() {}
+	NearestNeighborSearchProjective(): searchWindow(5), height(0) {}
 
 	~NearestNeighborSearchProjective() {
 	}
 
 	void buildIndex(const std::vector<Eigen::Vector3f>& targetPoints) {
-	}
+		m_points = targetPoints;
+    }
 
 	std::vector<Match> queryMatches(const std::vector<Vector3f>& transformedPoints) {
-		std::vector<Match> matches;
-		
+
+        const unsigned nMatches = transformedPoints.size();
+		const unsigned nTargetPoints = m_points.size();
+		std::vector<Match> matches(nMatches);
+
+        std::cout << "nMatches: " << nMatches << std::endl;
+		std::cout << "nTargetPoints: " << nTargetPoints << std::endl;
+
+        // No available camera params //
+        if(this->height == 0)
+            return matches;
+        
+        int u, v, idx; // Pixel coordinates
+        float fx, fy, mx, my;
+
+        fx = this->depthIntrinsics(0,0);
+        fy = this->depthIntrinsics(1,1);
+        mx = this->depthIntrinsics(0,2);
+        my = this->depthIntrinsics(1,2);
+
+        // For each point find its closest neighbor //
+        #pragma omp parallel for
+		for (int i = 0; i < nMatches; i++) {
+
+            // Camera to Image plane // 
+            u = std::round((transformedPoints[i].x() * fx) / transformedPoints[i].z() + mx);
+            v = std::round((transformedPoints[i].y() * fy) / transformedPoints[i].z() + my);
+        
+            for(int j = u - this->searchWindow; j < )
+
+
+			matches[i] = 		
+        } // End for
+
         return matches;
 	}
 
+    void setCameraParams(const Eigen::Matrix3f& depthIntrinsics, const unsigned width, const unsigned height){
+        this->depthIntrinsics = depthIntrinsics;
+        this->width = width;
+        this->height = height;
+        std::cout << this->height << std::endl;
+    }
+
 private:
-    int x;
+	std::vector<Eigen::Vector3f> m_points;
+    unsigned searchWindow;
+    unsigned width;
+    unsigned height;
+    Eigen::Matrix3f depthIntrinsics;
 };
 
 
