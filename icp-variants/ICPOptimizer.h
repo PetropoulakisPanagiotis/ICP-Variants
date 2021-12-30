@@ -56,6 +56,15 @@ public:
 
     void setMatchingMethod(unsigned int matchingMethod) {
         this->matchingMethod = matchingMethod;
+
+        if(matchingMethod == 0) 
+            m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchFlann>();
+        else
+            m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchProjective>();
+    }
+
+    void setCameraParamsMatchingMethod(const Eigen::Matrix3f& depthIntrinsics, const unsigned width, const unsigned height) {
+        m_nearestNeighborSearch->setCameraParams(depthIntrinsics, width, height);
     }
 
     void setNbOfIterations(unsigned nIterations) {
