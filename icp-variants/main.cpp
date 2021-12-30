@@ -12,8 +12,9 @@
 
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
-#define USE_POINT_TO_PLANE	1
-#define USE_LINEAR_ICP		0
+#define USE_POINT_TO_PLANE	0
+#define USE_SYMMETRIC	1
+#define USE_LINEAR_ICP		1
 
 #define RUN_SHAPE_ICP		1
 #define RUN_SEQUENCE_ICP	0
@@ -37,12 +38,17 @@ int alignBunnyWithICP() {
 		optimizer->setMetric(1);
 		optimizer->setNbOfIterations(20);
 	}
+	else if (USE_SYMMETRIC) {
+		optimizer->setMetric(2);
+		optimizer->setNbOfIterations(20);
+	}
 	else {
 		optimizer->setMetric(0);
 		optimizer->setNbOfIterations(20);
 	}
 
 	// TODO: Test uniform sampling
+	// optimizer->setSelectionMethod(SELECT_ALL);
 	optimizer->setSelectionMethod(UNIFORM_SAMPLING, 0.5);
 	// optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.5); // Resample points each iteration.
 
