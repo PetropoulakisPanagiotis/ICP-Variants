@@ -14,11 +14,11 @@ public:
 	virtual ~NearestNeighborSearch() {}
 
 	virtual void setMatchingMaxDistance(float maxDistance) {
-		m_maxDistance = maxDistance;
+		m_maxDistance = maxDistance; // Squared
 	}
 
     float getMatchingMaxDistance(float maxDistance) {
-		return m_maxDistance;
+		return m_maxDistance; // Squared
 	}
 
 	virtual void buildIndex(const std::vector<Eigen::Vector3f>& targetPoints) = 0;
@@ -199,6 +199,7 @@ private:
 	float* m_flatPoints;
 };
 
+// Project query source points to image target plane and find their closest neighbor by using a small search window // 
 class NearestNeighborSearchProjective : public NearestNeighborSearch {
 public:
 	NearestNeighborSearchProjective(): searchWindow(5), height(0) {}
@@ -207,10 +208,26 @@ public:
 	}
 
 	void buildIndex(const std::vector<Eigen::Vector3f>& targetPoints) {
-		m_points = targetPoints;
+		
+        std::cout << "Initializing Projective index with " << targetPoints.size() << " points." << std::endl;
+		
+        m_points = targetPoints;
+		
+        std::cout << "Projective index created." << std::endl;
     }
 
 	std::vector<Match> queryMatches(const std::vector<Vector3f>& transformedPoints) {
+
+        if (this->m_points.size() == 0) {
+			std::cout << "Projective index needs to be build before querying any matches." << std::endl;
+			return {};
+        }
+
+        // No available camera params //
+        if(this->height == 0){
+			std::cout << "Set camera params before querying any matches." << std::endl;
+            return {};
+        }
 
         const unsigned nMatches = transformedPoints.size();
 		const unsigned nTargetPoints = m_points.size();
@@ -219,13 +236,9 @@ public:
         std::cout << "nMatches: " << nMatches << std::endl;
 		std::cout << "nTargetPoints: " << nTargetPoints << std::endl;
 
-        // No available camera params //
-        if(this->height == 0)
-            return matches;
-        
-        int u, v, idx; // Pixel coordinates
-        float fx, fy, mx, my;
+        float fx, fy, mx, my; // Intrinsics
 
+        // Get Intrinsics //
         fx = this->depthIntrinsics(0,0);
         fy = this->depthIntrinsics(1,1);
         mx = this->depthIntrinsics(0,2);
@@ -233,17 +246,54 @@ public:
 
         // For each point find its closest neighbor //
         #pragma omp parallel for
-		for (int i = 0; i < nMatches; i++) {
+		for (unsigned int i = 0; i < nMatches; i++) {
 
-            // Camera to Image plane // 
-            u = std::round((transformedPoints[i].x() * fx) / transformedPoints[i].z() + mx);
-            v = std::round((transformedPoints[i].y() * fy) / transformedPoints[i].z() + my);
-        
-            for(int j = u - this->searchWindow; j < )
+            // Invalid point //
+            if(transformedPoints[i].x() == MINF)
+                continue;
 
+            unsigned int uPoint, vPoint; // Pixel coordinates
+            
+            // Tranfsorm camera coodinates to image coordinates of the current point // 
+            uPoint = std::round((transformedPoints[i].x() * fx) / transformedPoints[i].z() + mx);
+            vPoint = std::round((transformedPoints[i].y() * fy) / transformedPoints[i].z() + my);
+       
+            float minDist = std::numeric_limits<float>::max();
+            unsigned int idx = -1; // Neighrest neighbor index
 
-			matches[i] = 		
-        } // End for
+            // Scan neighbors and find the closest one //  
+            for(unsigned int v = vPoint - this->searchWindow; (v >= 0 && v < this->height && v <= vPoint + this->searchWindow); v++){
+                for(unsigned int u = uPoint - this->searchWindow; (u >= 0 && u < this->width && u <= uPoint + this->searchWindow); u++){
+
+                    // Index of current neighbor // 
+                    unsigned int neighborIndex = this->height * v + u;
+
+                    // Invalid neighbor point //
+                    if(this->m_points[neighborIndex].x() == MINF)
+                        continue;
+                    
+                    // Use squared distance // 
+                    float dist = (transformedPoints[i] - this->m_points[neighborIndex]).squaredNorm();
+
+                    // Closest neighborfound  //
+                    if (minDist > dist) {
+                        idx = neighborIndex;
+                        minDist = dist;
+                    }
+                } // End for u
+            } // End for v
+
+            // Add nearest neighbor for current (query) point //
+            if (minDist <= m_maxDistance){
+                matches[i].idx = idx;
+                matches[i].weight = 1.f; 
+            }
+            else{
+                matches[i].idx = -1;
+                matches[i].weight = 0.f; 
+            }
+
+        } // End for i - Scan transformedPoints (query points)
 
         return matches;
 	}
@@ -252,7 +302,6 @@ public:
         this->depthIntrinsics = depthIntrinsics;
         this->width = width;
         this->height = height;
-        std::cout << this->height << std::endl;
     }
 
 private:
@@ -262,5 +311,3 @@ private:
     unsigned height;
     Eigen::Matrix3f depthIntrinsics;
 };
-
-
