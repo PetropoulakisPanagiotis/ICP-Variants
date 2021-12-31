@@ -72,19 +72,19 @@ public:
         }
     }
 
-    PointCloud(float* depthMap, const Matrix3f& depthIntrinsics, const Matrix4f& depthExtrinsics, const unsigned width, const unsigned height, unsigned downsampleFactor = 1, float maxDistance = 0.1f) {
+    PointCloud(float* depthMap, const Matrix3f& depthIntrinsics, const Matrix4f& depthExtrinsics, const unsigned width, const unsigned height, unsigned downsampleFactor = 1, float maxDistance = 0.1f, bool keep=false) {
         // Get depth intrinsics.
         float fovX = depthIntrinsics(0, 0);
         float fovY = depthIntrinsics(1, 1);
         float cX = depthIntrinsics(0, 2);
         float cY = depthIntrinsics(1, 2);
         const float maxDistanceHalved = maxDistance / 2.f;
-
+        
         // Compute inverse depth extrinsics.
         Matrix4f depthExtrinsicsInv = depthExtrinsics.inverse();
         Matrix3f rotationInv = depthExtrinsicsInv.block(0, 0, 3, 3);
         Vector3f translationInv = depthExtrinsicsInv.block(0, 3, 3, 1);
-
+        
         // Back-project the pixel depths into the camera space.
         std::vector<Vector3f> pointsTmp(width * height);
 
@@ -147,7 +147,7 @@ public:
             const auto& point = pointsTmp[i];
             const auto& normal = normalsTmp[i];
 
-            if (point.allFinite() && normal.allFinite()) {
+            if (keep || point.allFinite() && normal.allFinite()) {
                 m_points.push_back(point);
                 m_normals.push_back(normal);
             }
