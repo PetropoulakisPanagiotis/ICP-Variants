@@ -18,7 +18,7 @@
 
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
-#define USE_POINT_TO_PLANE	1
+#define USE_POINT_TO_PLANE	0
 #define USE_LINEAR_ICP		0
 
 #define RUN_SHAPE_ICP		0
@@ -160,7 +160,7 @@ int reconstructRoom() {
 		optimizer->setNbOfIterations(20);
 	}
 
-	optimizer->setSelectionMethod(SELECT_ALL);
+	//optimizer->setSelectionMethod(SELECT_ALL);
 	
     // Create a Time Profiler
 	auto timeMeasure = TimeMeasure();
@@ -169,7 +169,6 @@ int reconstructRoom() {
     // Projective search //
     optimizer->setMatchingMethod(1);
     optimizer->setCameraParamsMatchingMethod(sensor.getDepthIntrinsics(),sensor.getDepthImageWidth(), sensor.getDepthImageHeight());
-    exit(1);
 
     // We store the estimated camera poses.
 	std::vector<Matrix4f> estimatedPoses;
@@ -177,7 +176,7 @@ int reconstructRoom() {
 	estimatedPoses.push_back(currentCameraToWorld.inverse());
 
 	int i = 0;
-	const int iMax = 20; //50
+	const int iMax = 50; //50
 	while (sensor.processNextFrame() && i <= iMax) {
 		float* depthMap = sensor.getDepth();
 		Matrix3f depthIntrinsics = sensor.getDepthIntrinsics();
@@ -193,7 +192,7 @@ int reconstructRoom() {
 		std::cout << "Current camera pose: " << std::endl << currentCameraPose << std::endl;
 		estimatedPoses.push_back(currentCameraPose);
 
-		if (true || (i % 5 == 0)) {
+		if (i % 5 == 0) {
 			// We write out the mesh to file for debugging.
 			SimpleMesh currentDepthMesh{ sensor, currentCameraPose, 0.1f };
 			SimpleMesh currentCameraMesh = SimpleMesh::camera(currentCameraPose, 0.0015f);

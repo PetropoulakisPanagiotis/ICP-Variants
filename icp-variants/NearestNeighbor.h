@@ -243,6 +243,7 @@ public:
         fy = this->depthIntrinsics(1,1);
         mx = this->depthIntrinsics(0,2);
         my = this->depthIntrinsics(1,2);
+        int counter = 0;
 
         // For each point find its closest neighbor //
         #pragma omp parallel for
@@ -255,25 +256,26 @@ public:
             unsigned int uPoint, vPoint; // Pixel coordinates
             
             // Tranfsorm camera coodinates to image coordinates of the current point // 
-            uPoint = std::round((transformedPoints[i].x() * fx) / transformedPoints[i].z() + mx);
-            vPoint = std::round((transformedPoints[i].y() * fy) / transformedPoints[i].z() + my);
+            uPoint = std::round(((transformedPoints[i].x() * fx) / transformedPoints[i].z()) + mx);
+            vPoint = std::round(((transformedPoints[i].y() * fy) / transformedPoints[i].z()) + my);
        
             float minDist = std::numeric_limits<float>::max();
             unsigned int idx = -1; // Neighrest neighbor index
 
             // Scan neighbors and find the closest one //  
-            for(unsigned int v = vPoint - this->searchWindow; (v >= 0 && v < this->height && v <= vPoint + this->searchWindow); v++){
-                for(unsigned int u = uPoint - this->searchWindow; (u >= 0 && u < this->width && u <= uPoint + this->searchWindow); u++){
+            for(unsigned int u = uPoint - this->searchWindow; (u >= 0 && u < this->width && u <= uPoint + this->searchWindow); u++){
+                for(unsigned int v = vPoint - this->searchWindow; (v >= 0 && v < this->height && v <= vPoint + this->searchWindow); v++){
 
                     // Index of current neighbor // 
-                    unsigned int neighborIndex = this->height * v + u;
+                    unsigned int neighborIndex = this->width * v + u;
 
                     // Invalid neighbor point //
                     if(this->m_points[neighborIndex].x() == MINF)
                         continue;
                     
                     // Use squared distance // 
-                    float dist = (transformedPoints[i] - this->m_points[neighborIndex]).squaredNorm();
+                    //float dist = (transformedPoints[i] - this->m_points[neighborIndex]).squaredNorm();
+                    float dist = (transformedPoints[i] - this->m_points[neighborIndex]).norm();
 
                     // Closest neighborfound  //
                     if (minDist > dist) {
@@ -286,7 +288,8 @@ public:
             // Add nearest neighbor for current (query) point //
             if (minDist <= m_maxDistance){
                 matches[i].idx = idx;
-                matches[i].weight = 1.f; 
+                matches[i].weight = 1.f;
+                counter++; 
             }
             else{
                 matches[i].idx = -1;
@@ -294,6 +297,8 @@ public:
             }
 
         } // End for i - Scan transformedPoints (query points)
+       
+		std::cout << "Valid neighbors: " << counter << std::endl;
 
         return matches;
 	}

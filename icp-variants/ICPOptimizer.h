@@ -274,6 +274,12 @@ private:
 
                 // TODO: Create a new point-to-point cost function and add it as constraint (i.e. residual block) 
                 // to the Ceres problem.
+                problem.AddResidualBlock(
+                    new ceres::AutoDiffCostFunction<PointToPointConstraint, 3, 6>(
+                        new PointToPointConstraint(sourcePoint, targetPoint, match.weight)
+                    ),
+                    nullptr, poseIncrement.getData()
+                );
 
                 const auto& targetNormal = targetNormals[match.idx];
 
