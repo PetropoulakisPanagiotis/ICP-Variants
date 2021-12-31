@@ -21,9 +21,9 @@
 #define USE_POINT_TO_PLANE	1
 #define USE_LINEAR_ICP		0
 
-#define RUN_SHAPE_ICP		1
+#define RUN_SHAPE_ICP		0
 #define RUN_SEQUENCE_ICP	0
-#define RUN_ETH_ICP			0
+#define RUN_ETH_ICP			1
 
 
 int alignBunnyWithICP() {
@@ -88,6 +88,8 @@ int alignBunnyWithICP() {
 	optimizer->setTimeMeasure(timeMeasure);
 	
 	// Estimate pose
+	std::cout << "num points source:" << input.source.getPoints().size() << std::endl;
+	std::cout << "num points target:" << input.target.getPoints().size() << std::endl;
 	optimizer->estimatePose(input.source, input.target, estimatedPose);
 	
 	// Calculate convergence measure
@@ -97,7 +99,7 @@ int alignBunnyWithICP() {
 	// Calculate time
 	timeMeasure.calculateIterationTime();
 
-
+	std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
 	
 	// Visualize the resulting joined mesh. We add triangulated spheres for point matches.
 	SimpleMesh resultingMesh = SimpleMesh::joinMeshes(bunny_data_loader.getSourceMesh(), bunny_data_loader.getTargetMesh(), estimatedPose);
@@ -206,11 +208,58 @@ int reconstructRoom() {
 }
 
 int alignETH() {
+	
+
+	// Estimate the pose from source to target mesh with ICP optimization.
+	ICPOptimizer* optimizer = nullptr;
+	if (USE_LINEAR_ICP) {
+		optimizer = new LinearICPOptimizer();
+	}
+	else {
+		optimizer = new CeresICPOptimizer();
+	}
+
+	// Square distance //
+	optimizer->setMatchingMaxDistance(0.0003f);
+	if (USE_POINT_TO_PLANE) {
+		optimizer->setMetric(1);
+		optimizer->setNbOfIterations(20);
+	}
+	else {
+		optimizer->setMetric(0);
+		optimizer->setNbOfIterations(20);
+	}
+
+	// TODO: Test uniform sampling
+	//optimizer->setSelectionMethod(UNIFORM_SAMPLING, 0.5);
+	//optimizer->setSelectionMethod(SELECT_ALL);
+	optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.01); // Resample points each iteration.
+
+	// Weighting step //
+	optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
+
+	// load the sample
 	// Load the source and target mesh.
 	ETHDataLoader eth_data_loader{};
-	Sample s = eth_data_loader.getItem(0);
-	s.source.writeToFile("source.ply");
-	s.target.writeToFile("target.ply");
+	Sample input = eth_data_loader.getItem(0);
+	Matrix4f estimatedPose = Matrix4f::Identity();
+
+	// Create a Time Profiler
+	auto timeMeasure = TimeMeasure();
+	optimizer->setTimeMeasure(timeMeasure);
+
+	// Estimate pose
+	std::cout << "num points source:" << input.source.getPoints().size() << std::endl;
+	std::cout << "num points target:" << input.target.getPoints().size() << std::endl;
+	optimizer->estimatePose(input.source, input.target, estimatedPose);
+
+	// Calculate time
+	timeMeasure.calculateIterationTime();
+
+	std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
+
+	delete optimizer;
+
 	return 0;
 }
 
