@@ -268,23 +268,21 @@ public:
 
                     // Index of current neighbor // 
                     unsigned int neighborIndex = this->width * v + u;
-
+                    
                     // Invalid neighbor point //
                     if(this->m_points[neighborIndex].x() == MINF)
                         continue;
-                    
                     // Use squared distance // 
-                    //float dist = (transformedPoints[i] - this->m_points[neighborIndex]).squaredNorm();
-                    float dist = (transformedPoints[i] - this->m_points[neighborIndex]).norm();
-
+                    float dist = (transformedPoints[i] - this->m_points[neighborIndex]).squaredNorm();
+                    //float dist = (transformedPoints[i] - this->m_points[neighborIndex]).norm();
                     // Closest neighborfound  //
                     if (minDist > dist) {
                         idx = neighborIndex;
                         minDist = dist;
                     }
                 } // End for u
-            } // End for v
-
+            } // End for v  
+            
             // Add nearest neighbor for current (query) point //
             if (minDist <= m_maxDistance){
                 matches[i].idx = idx;
@@ -295,7 +293,6 @@ public:
                 matches[i].idx = -1;
                 matches[i].weight = 0.f; 
             }
-
         } // End for i - Scan transformedPoints (query points)
        
 		std::cout << "Valid neighbors: " << counter << std::endl;

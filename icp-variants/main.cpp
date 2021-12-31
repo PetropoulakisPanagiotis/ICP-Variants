@@ -139,9 +139,9 @@ int reconstructRoom() {
 
 	// We store a first frame as a reference frame. All next frames are tracked relatively to the first frame.
 	sensor.processNextFrame();
-	PointCloud target{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight() };
-	
-	// Setup the optimizer.
+	PointCloud target{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), true};
+    
+    // Setup the optimizer.
 	ICPOptimizer* optimizer = nullptr;
 	if (USE_LINEAR_ICP) {
 		optimizer = new LinearICPOptimizer();
@@ -150,7 +150,11 @@ int reconstructRoom() {
 		optimizer = new CeresICPOptimizer();
 	}
 
-	optimizer->setMatchingMaxDistance(0.1f);
+    // Projective search //
+    optimizer->setMatchingMethod(1);
+    optimizer->setCameraParamsMatchingMethod(sensor.getDepthIntrinsics(),sensor.getDepthImageWidth(), sensor.getDepthImageHeight());
+
+    optimizer->setMatchingMaxDistance(0.1f);
 	if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
 		optimizer->setNbOfIterations(10);
@@ -165,10 +169,6 @@ int reconstructRoom() {
     // Create a Time Profiler
 	auto timeMeasure = TimeMeasure();
 	optimizer->setTimeMeasure(timeMeasure);
-
-    // Projective search //
-    optimizer->setMatchingMethod(1);
-    optimizer->setCameraParamsMatchingMethod(sensor.getDepthIntrinsics(),sensor.getDepthImageWidth(), sensor.getDepthImageHeight());
 
     // We store the estimated camera poses.
 	std::vector<Matrix4f> estimatedPoses;

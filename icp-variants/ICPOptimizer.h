@@ -159,8 +159,10 @@ public:
             if (selectionMethod == RANDOM_SAMPLING) // Resample each iteration
                 sourceSelection.resample();
             
-            auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
-            auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
+            //auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
+            auto transformedPoints = transformPoints(source.getPoints(), estimatedPose);
+            //auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
+            auto transformedNormals = transformNormals(source.getNormals(), estimatedPose);
             std::cout << "Number of source points to match = " << transformedPoints.size() << std::endl;
 
             step_start = clock();
@@ -437,6 +439,8 @@ public:
 
             std::vector<Vector3f> sourcePoints;
             std::vector<Vector3f> targetPoints;
+            std::vector<Vector3f> sourceNormals;
+            std::vector<Vector3f> targetNormals;
 
             // Add all matches to the sourcePoints and targetPoints vector,
             // so that the sourcePoints[i] matches targetPoints[i]. For every source point,
@@ -446,12 +450,14 @@ public:
                 if (match.idx >= 0) {
                     sourcePoints.push_back(transformedPoints[j]);
                     targetPoints.push_back(target.getPoints()[match.idx]);
+                    sourceNormals.push_back(transformedNormals[j]);
+                    targetNormals.push_back(target.getNormals()[match.idx]);
                 }
             }
 
             // Estimate the new pose
             if (metric == 1) {
-                estimatedPose = estimatePosePointToPlane(sourcePoints, targetPoints, target.getNormals()) * estimatedPose;
+                estimatedPose = estimatePosePointToPlane(sourcePoints, targetPoints, targetNormals) * estimatedPose;
             }
             else if(metric == 0) {
                 estimatedPose = estimatePosePointToPoint(sourcePoints, targetPoints) * estimatedPose;
