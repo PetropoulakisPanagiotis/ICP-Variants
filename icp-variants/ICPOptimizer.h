@@ -159,10 +159,8 @@ public:
             if (selectionMethod == RANDOM_SAMPLING) // Resample each iteration
                 sourceSelection.resample();
             
-            //auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
-            auto transformedPoints = transformPoints(source.getPoints(), estimatedPose);
-            //auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
-            auto transformedNormals = transformNormals(source.getNormals(), estimatedPose);
+            auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
+            auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
             std::cout << "Number of source points to match = " << transformedPoints.size() << std::endl;
 
             step_start = clock();

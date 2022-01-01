@@ -72,7 +72,7 @@ public:
         }
     }
 
-    PointCloud(float* depthMap, const Matrix3f& depthIntrinsics, const Matrix4f& depthExtrinsics, const unsigned width, const unsigned height, bool keep = false, unsigned downsampleFactor = 1, float maxDistance = 0.1f) {
+    PointCloud(float* depthMap, const Matrix3f& depthIntrinsics, const Matrix4f& depthExtrinsics, const unsigned width, const unsigned height, bool keepOriginalSize = false, unsigned downsampleFactor = 1, float maxDistance = 0.1f) {
         // Get depth intrinsics.
         float fovX = depthIntrinsics(0, 0);
         float fovY = depthIntrinsics(1, 1);
@@ -147,7 +147,7 @@ public:
             const auto& point = pointsTmp[i];
             const auto& normal = normalsTmp[i];
 
-            if (keep || (point.allFinite() && normal.allFinite())) {
+            if (keepOriginalSize || (point.allFinite() && normal.allFinite())) {
                 m_points.push_back(point);
                 m_normals.push_back(normal);
             }
