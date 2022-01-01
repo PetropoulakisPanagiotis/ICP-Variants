@@ -229,23 +229,28 @@ public:
             return {};
         }
 
+        if(this->m_points.size() != (this->width * this->height)){
+            std::cout << "Invalid size of target points." << std::endl;
+            return {};
+        }
+
         const unsigned nMatches = transformedPoints.size();
 		const unsigned nTargetPoints = m_points.size();
 		std::vector<Match> matches(nMatches);
 
-        std::cout << "nMatches: " << nMatches << std::endl;
 		std::cout << "nTargetPoints: " << nTargetPoints << std::endl;
+        std::cout << "nMatches: " << nMatches << std::endl;
 
-        float fx, fy, mx, my; // Intrinsics
+        float fx, fy, mx, my; // Depth intrinsics
+        int counterValid = 0; // Num of valid matches
 
-        // Get Intrinsics //
+        // Get depth intrinsics //
         fx = this->depthIntrinsics(0,0);
         fy = this->depthIntrinsics(1,1);
         mx = this->depthIntrinsics(0,2);
         my = this->depthIntrinsics(1,2);
-        int counter = 0;
 
-        // For each point find its closest neighbor //
+        // For each source point find its closest neighbor //
         #pragma omp parallel for
 		for (unsigned int i = 0; i < nMatches; i++) {
 
@@ -263,8 +268,8 @@ public:
             unsigned int idx = -1; // Neighrest neighbor index
 
             // Scan neighbors and find the closest one //  
-            for(unsigned int u = uPoint - this->searchWindow; (u >= 0 && u < this->width && u <= uPoint + this->searchWindow); u++){
-                for(unsigned int v = vPoint - this->searchWindow; (v >= 0 && v < this->height && v <= vPoint + this->searchWindow); v++){
+            for(unsigned int v = vPoint - this->searchWindow; (v >= 0 && v < this->height && v <= vPoint + this->searchWindow); v++){
+                for(unsigned int u = uPoint - this->searchWindow; (u >= 0 && u < this->width && u <= uPoint + this->searchWindow); u++){
 
                     // Index of current neighbor // 
                     unsigned int neighborIndex = this->width * v + u;
@@ -272,10 +277,11 @@ public:
                     // Invalid neighbor point //
                     if(this->m_points[neighborIndex].x() == MINF)
                         continue;
+                    
                     // Use squared distance // 
                     float dist = (transformedPoints[i] - this->m_points[neighborIndex]).squaredNorm();
-                    //float dist = (transformedPoints[i] - this->m_points[neighborIndex]).norm();
-                    // Closest neighborfound  //
+                    
+                    // Closest neighbor found //
                     if (minDist > dist) {
                         idx = neighborIndex;
                         minDist = dist;
@@ -287,7 +293,7 @@ public:
             if (minDist <= m_maxDistance){
                 matches[i].idx = idx;
                 matches[i].weight = 1.f;
-                counter++; 
+                counterValid++; 
             }
             else{
                 matches[i].idx = -1;
@@ -295,11 +301,12 @@ public:
             }
         } // End for i - Scan transformedPoints (query points)
        
-		std::cout << "Valid neighbors: " << counter << std::endl;
+		std::cout << "nValid matches: " << counterValid << std::endl;
 
         return matches;
 	}
 
+    // Parse camera parameters - required for querying points //
     void setCameraParams(const Eigen::Matrix3f& depthIntrinsics, const unsigned width, const unsigned height){
         this->depthIntrinsics = depthIntrinsics;
         this->width = width;
@@ -307,9 +314,9 @@ public:
     }
 
 private:
-	std::vector<Eigen::Vector3f> m_points;
-    unsigned searchWindow;
-    unsigned width;
+	std::vector<Eigen::Vector3f> m_points; // Target points
+    unsigned searchWindow; // How many pixels to take into account during search
+    unsigned width; // Img width
     unsigned height;
     Eigen::Matrix3f depthIntrinsics;
 };
