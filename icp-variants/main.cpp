@@ -140,7 +140,7 @@ int reconstructRoom() {
 	// We store a first frame as a reference frame. All next frames are tracked relatively to the first frame.
 	sensor.processNextFrame();
 	PointCloud target{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), true};
-    
+
     // Setup the optimizer.
 	ICPOptimizer* optimizer = nullptr;
 	if (USE_LINEAR_ICP) {
@@ -184,8 +184,8 @@ int reconstructRoom() {
 
 		// Estimate the current camera pose from source to target mesh with ICP optimization.
 		// We downsample the source image to speed up the correspondence matching.
-		PointCloud source{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), 8 };
-		optimizer->estimatePose(source, target, currentCameraToWorld);
+		PointCloud source{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), false, 8 };
+        optimizer->estimatePose(source, target, currentCameraToWorld);
 		
 		// Invert the transformation matrix to get the current camera pose.
 		Matrix4f currentCameraPose = currentCameraToWorld.inverse();

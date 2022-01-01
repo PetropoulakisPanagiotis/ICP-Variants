@@ -72,7 +72,7 @@ public:
         }
     }
 
-    PointCloud(float* depthMap, const Matrix3f& depthIntrinsics, const Matrix4f& depthExtrinsics, const unsigned width, const unsigned height, unsigned downsampleFactor = 1, float maxDistance = 0.1f, bool keep=false) {
+    PointCloud(float* depthMap, const Matrix3f& depthIntrinsics, const Matrix4f& depthExtrinsics, const unsigned width, const unsigned height, bool keep = false, unsigned downsampleFactor = 1, float maxDistance = 0.1f) {
         // Get depth intrinsics.
         float fovX = depthIntrinsics(0, 0);
         float fovY = depthIntrinsics(1, 1);
@@ -95,6 +95,7 @@ public:
             for (int u = 0; u < width; ++u) {
                 unsigned int idx = v * width + u; // linearized index
                 float depth = depthMap[idx];
+
                 if (depth == MINF) {
                     pointsTmp[idx] = Vector3f(MINF, MINF, MINF);
                 }
@@ -104,7 +105,6 @@ public:
                 }
             }
         }
-
         // We need to compute derivatives and then the normalized normal vector (for valid pixels).
         std::vector<Vector3f> normalsTmp(width * height);
 
@@ -147,7 +147,7 @@ public:
             const auto& point = pointsTmp[i];
             const auto& normal = normalsTmp[i];
 
-            if (keep || point.allFinite() && normal.allFinite()) {
+            if (keep || (point.allFinite() && normal.allFinite())) {
                 m_points.push_back(point);
                 m_normals.push_back(normal);
             }
