@@ -460,6 +460,9 @@ public:
             else if(metric == 0) {
                 estimatedPose = estimatePosePointToPoint(sourcePoints, targetPoints) * estimatedPose;
             }
+            else if(metric == 2) {
+                estimatedPose = estimatePoseSymmetricICP(sourcePoints, targetPoints, sourceNormals, targetNormals) * estimatedPose;
+            }
 
             std::cout << "Optimization iteration done." << std::endl;
         }
@@ -589,8 +592,79 @@ private:
         return estimatedPose;
     }
 
-    Matrix4f estimatePoseSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals) {
+    Matrix4f estimatePoseSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, 
+            const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals) {
+        const unsigned nPoints = sourcePoints.size();
+
+        // Build the system
+        MatrixXf A = MatrixXf::Zero(nPoints, 6);
+        VectorXf b = VectorXf::Zero(nPoints);
+
+        // Normalize source and target points to center (0,0,0)
+        // Todo Compute mean
+        Vector3f meanSource = computeMean(sourcePoints);
+        Vector3f meanTarget = computeMean(targetPoints);
+
+        for (unsigned i = 0; i < nPoints; i++) {
+            const auto& s = sourcePoints[i];
+            const auto& d = targetPoints[i];
+            const auto& n = targetNormals[i];
+
+            // FIXME Verify this
+            Vector3f s_normalized = s - meanSource;
+            Vector3f d_normalized = d - meanTarget;
+
+            Vector3f normal_sum = targetNormals[i] + sourceNormals[i];
+            // b
+            b(i) = (d_normalized - s_normalized).dot(normal_sum);
+
+            // Add the Symmetric constraints to the system
+            A.row(i).segment(0, 3) = (s_normalized + d_normalized).cross(normal_sum);
+            A.row(i).segment(3, 3) = normal_sum;
+        }
+
+        // Solve the system
+        // Option 1: Using LU solver
+        VectorXf x(6);
+        MatrixXf m_systemMatrix = A.transpose() * A;
+		VectorXf m_rhs = A.transpose() * b;
+
+		// Optionally: regularizer -> smoother surface
+		// pushes the coefficients to zero
+		float lambda = 0.0001;
+		m_systemMatrix.diagonal() += lambda * lambda * VectorXf::Ones(6);
+
+        FullPivLU<Matrix<float, Dynamic, Dynamic>> LU(m_systemMatrix);
+	    // VectorXf m_coefficents;
+		x = LU.solve(m_rhs);
+
+        // Build the pose matrix using the rotation and translation matrices
+        // Using symmtric formula
+        // a_tilde = a * tan(theta) (||a|| = 1) => ||a_tilde|| = tan(theta)
+        // a = a_tilde / ||a_tilde||
+        // t = t_tilde * cos(theta)
+        // theta < pi (180)
+        Vector3f a_tilde = x.head(3);
+        Vector3f t_tilde = x.tail(3);
+        float tan_theta = a_tilde.norm(); // Assure a_tilde > 0
+        Vector3f a = a_tilde / tan_theta;
+        std::cout << "a length " << a.norm() <<  "tan_theta" << tan_theta << "\n";
+
+        // TODO compute angle theta; or its cos sin from a_tilde
+        // Sin, cos is positive or negative
+        float sin_theta = tan_theta / std::sqrt(1.0 + tan_theta * tan_theta);
+        float cos_theta = sin_theta / tan_theta; 
+        std::cout << "Cos theta: " << cos_theta << " - Sin theta: " << sin_theta << "\n";
+        Vector3f t = t_tilde * cos_theta; // Look good
+
+        // TODO Fix this
+        Matrix4f rodriguesMatrix =  Matrix4f::Identity();
+        rodriguesMatrix.block(0, 0, 3, 3) = getRodriguesMatrix(a, sin_theta, cos_theta);
+
         Matrix4f estimatedPose = Matrix4f::Identity();
+        // TODO Verify
+        estimatedPose = gettranslationMatrix(meanTarget) * rodriguesMatrix * gettranslationMatrix(t) 
+                * rodriguesMatrix * gettranslationMatrix(-meanSource);
     
         return estimatedPose;
     }
