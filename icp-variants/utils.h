@@ -55,6 +55,22 @@ public:
         outputPoint[2] = temp[2] + translation[2];
     }
 
+
+    void apply_inv(T* inputPoint, T* outputPoint) const {
+        // pose[0,1,2] is angle-axis rotation.
+        // pose[3,4,5] is translation.
+        const T* rotation = m_array;
+        const T* translation = m_array + 3;
+
+        T rotationInv[3];
+        rotationInv[0] = -rotation[0];
+        rotationInv[1] = -rotation[1];
+        rotationInv[2] = -rotation[2];
+
+        ceres::AngleAxisRotatePoint(rotationInv, inputPoint, outputPoint);
+    }
+
+
     /**
      * Converts the pose increment with rotation in SO3 notation and translation as 3D vector into
      * transformation 4x4 matrix.
