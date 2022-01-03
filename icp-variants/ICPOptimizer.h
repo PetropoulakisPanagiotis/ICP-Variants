@@ -56,6 +56,15 @@ public:
 
     void setMatchingMethod(unsigned int matchingMethod) {
         this->matchingMethod = matchingMethod;
+
+        if(matchingMethod == 0) 
+            m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchFlann>();
+        else
+            m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchProjective>();
+    }
+
+    void setCameraParamsMatchingMethod(const Eigen::Matrix3f& depthIntrinsics, const unsigned width, const unsigned height) {
+        m_nearestNeighborSearch->setCameraParams(depthIntrinsics, width, height);
     }
 
     void setNbOfIterations(unsigned nIterations) {
@@ -265,6 +274,12 @@ private:
 
                 // TODO: Create a new point-to-point cost function and add it as constraint (i.e. residual block) 
                 // to the Ceres problem.
+                problem.AddResidualBlock(
+                    new ceres::AutoDiffCostFunction<PointToPointConstraint, 3, 6>(
+                        new PointToPointConstraint(sourcePoint, targetPoint, match.weight)
+                    ),
+                    nullptr, poseIncrement.getData()
+                );
 
                 const auto& targetNormal = targetNormals[match.idx];
 
@@ -422,6 +437,8 @@ public:
 
             std::vector<Vector3f> sourcePoints;
             std::vector<Vector3f> targetPoints;
+            std::vector<Vector3f> sourceNormals;
+            std::vector<Vector3f> targetNormals;
 
             // Add all matches to the sourcePoints and targetPoints vector,
             // so that the sourcePoints[i] matches targetPoints[i]. For every source point,
@@ -431,12 +448,14 @@ public:
                 if (match.idx >= 0) {
                     sourcePoints.push_back(transformedPoints[j]);
                     targetPoints.push_back(target.getPoints()[match.idx]);
+                    sourceNormals.push_back(transformedNormals[j]);
+                    targetNormals.push_back(target.getNormals()[match.idx]);
                 }
             }
 
             // Estimate the new pose
             if (metric == 1) {
-                estimatedPose = estimatePosePointToPlane(sourcePoints, targetPoints, target.getNormals()) * estimatedPose;
+                estimatedPose = estimatePosePointToPlane(sourcePoints, targetPoints, targetNormals) * estimatedPose;
             }
             else if(metric == 0) {
                 estimatedPose = estimatePosePointToPoint(sourcePoints, targetPoints) * estimatedPose;
