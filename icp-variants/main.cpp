@@ -257,6 +257,7 @@ int alignETH() {
 	timeMeasure.calculateIterationTime();
 
 	std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
+	std::cout << "true pose:\n" << input.pose << std::endl;
 
 	input.source.writeToFile("source.ply");
 	input.target.writeToFile("target_old_pose.ply");
