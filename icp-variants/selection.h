@@ -22,7 +22,7 @@ class PointSelection {
         }
 
         // Get points associated with selected indexes
-        std::vector<Vector3f>& getPoints() {
+        const std::vector<Vector3f>& getPoints() {
             // If select all
             if (m_selectionMode == SELECT_ALL) 
                 return m_source.getPoints();
@@ -33,7 +33,7 @@ class PointSelection {
 
 
         // Get normals associated with selected indexes
-        std::vector<Vector3f>& getNormals() {
+        const std::vector<Vector3f>& getNormals() {
             // If select all
             if (m_selectionMode == SELECT_ALL) 
                 return m_source.getNormals();;
