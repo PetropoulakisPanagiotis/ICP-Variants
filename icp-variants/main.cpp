@@ -258,6 +258,10 @@ int alignETH() {
 
 	std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
 
+	input.source.writeToFile("source.ply");
+	input.target.writeToFile("target_old_pose.ply");
+	input.target.change_pose(estimatedPose);
+	input.target.writeToFile("target_new_pose.ply");
 	delete optimizer;
 
 	return 0;
