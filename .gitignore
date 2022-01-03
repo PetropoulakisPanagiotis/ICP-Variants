@@ -37,7 +37,11 @@ icp-variants/Build
 icp-variants/build
 icp-variants/CMakeSettings.json
 .vs
+*/.swp
 
 # VSCode
 .DS_Store
 .vscode/
+
+Data/apartment
+Data/apartment_global.txt
