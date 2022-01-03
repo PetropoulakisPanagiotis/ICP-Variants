@@ -1,14 +1,20 @@
 #include <iostream>
 #include <fstream>
 
+
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
+
 #include "Eigen.h"
 #include "VirtualSensor.h"
 #include "SimpleMesh.h"
 #include "ICPOptimizer.h"
 #include "PointCloud.h"
 #include "BunnyDataLoader.h"
+#include "ETHDataLoader.h"
 #include "ConvergenceMeasure.h"
 #include "selection.h"
+#include "TimeMeasure.h"
 
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
@@ -17,6 +23,7 @@
 
 #define RUN_SHAPE_ICP		1
 #define RUN_SEQUENCE_ICP	0
+#define RUN_ETH_ICP			0
 
 
 int alignBunnyWithICP() {
@@ -32,6 +39,7 @@ int alignBunnyWithICP() {
 		optimizer = new CeresICPOptimizer();
 	}
 	
+    // Square distance //
 	optimizer->setMatchingMaxDistance(0.0003f);
 	if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
@@ -43,8 +51,12 @@ int alignBunnyWithICP() {
 	}
 
 	// TODO: Test uniform sampling
-	optimizer->setSelectionMethod(UNIFORM_SAMPLING, 0.5);
+	//optimizer->setSelectionMethod(UNIFORM_SAMPLING, 0.5);
+	optimizer->setSelectionMethod(SELECT_ALL);
 	// optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.5); // Resample points each iteration.
+
+    // Weighting step //
+    optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
 
 	// load the sample
 	Sample input = bunny_data_loader.getItem(0);
@@ -71,9 +83,20 @@ int alignBunnyWithICP() {
 	// Create a Convergence Measure
 	auto convergenMearsure = ConvergenceMeasure(gtSourcePoints, gtTargetPoints);
 
+	// Create a Time Profiler
+	auto timeMeasure = TimeMeasure();
+	optimizer->setTimeMeasure(timeMeasure);
+	
+	// Estimate pose
 	optimizer->estimatePose(input.source, input.target, estimatedPose);
+	
+	// Calculate convergence measure
 	auto alignmentError = convergenMearsure.rmseAlignmentError(estimatedPose);
 	std::cout << "RMSE Alignment error of Final transform: " << alignmentError << std::endl;
+
+	// Calculate time
+	timeMeasure.calculateIterationTime();
+
 
 	
 	// Visualize the resulting joined mesh. We add triangulated spheres for point matches.
@@ -182,12 +205,23 @@ int reconstructRoom() {
 	return 0;
 }
 
+int alignETH() {
+	// Load the source and target mesh.
+	ETHDataLoader eth_data_loader{};
+	Sample s = eth_data_loader.getItem(0);
+	s.source.writeToFile("source.ply");
+	s.target.writeToFile("target.ply");
+	return 0;
+}
+
 int main() {
 	int result = 0;
 	if (RUN_SHAPE_ICP)
 		result += alignBunnyWithICP();
 	if (RUN_SEQUENCE_ICP)
 		result += reconstructRoom();
+	if (RUN_ETH_ICP)
+		result += alignETH();
 
 	return result;
 }
