@@ -26,7 +26,9 @@ class WeightingMethod{
         }
 
         float calculateNormalsWeight(const Vector3f& sourceNormal, const Vector3f& targetNormal){
-            return 1.0;
+
+            return sourceNormal.dot(targetNormal);
+
         }
 
         float calculateColorsWeight(const Vector3uc& sourceColor, const Vector3uc& targetColor){
