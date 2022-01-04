@@ -14,6 +14,8 @@
 #include "utils.h"
 #include "constraints.h"
 #include "selection.h"
+#include "TimeMeasure.h"
+#include "weighting.h"
 
 /**
  * ICP optimizer - Abstract Base Class
@@ -22,7 +24,7 @@ class ICPOptimizer {
 public:
     ICPOptimizer() :
         metric{ 0 }, selectionMethod{0}, rejectionMethod{1}, weightingMethod{0},
-        m_nIterations{ 20 }, matchingMethod{0}{ 
+        m_nIterations{ 20 }, matchingMethod{0}, maxDistance{0.0003f}{ 
    
         if(matchingMethod == 0) 
             m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchFlann>();
@@ -32,6 +34,7 @@ public:
 
     void setMatchingMaxDistance(float maxDistance) {
         m_nearestNeighborSearch->setMatchingMaxDistance(maxDistance);
+        this->maxDistance = maxDistance;
     }
 
     void setMetric(unsigned int metric) {
@@ -47,17 +50,32 @@ public:
         this->rejectionMethod = rejectionMethod;
     }
 
-    void setWeightinhMethod(unsigned int weightingMethod) {
+    void setWeightingMethod(unsigned int weightingMethod) {
         this->weightingMethod = weightingMethod;
     }
 
     void setMatchingMethod(unsigned int matchingMethod) {
         this->matchingMethod = matchingMethod;
+
+        if(matchingMethod == 0) 
+            m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchFlann>();
+        else
+            m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchProjective>();
+    }
+
+    void setCameraParamsMatchingMethod(const Eigen::Matrix3f& depthIntrinsics, const unsigned width, const unsigned height) {
+        m_nearestNeighborSearch->setCameraParams(depthIntrinsics, width, height);
     }
 
     void setNbOfIterations(unsigned nIterations) {
         m_nIterations = nIterations;
     }
+
+    void setTimeMeasure(TimeMeasure& timeMeasure) {
+        timeMeasure.nIterations = &m_nIterations;
+        m_timeMeasure = &timeMeasure;
+    }
+
 
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) = 0;
 
@@ -69,6 +87,8 @@ protected:
     unsigned int weightingMethod;
     unsigned int matchingMethod;
     unsigned m_nIterations;
+    TimeMeasure* m_timeMeasure;
+    float maxDistance; // Sqaure distance
     std::unique_ptr<NearestNeighborSearch> m_nearestNeighborSearch;
 
     void pruneCorrespondences(const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals, std::vector<Match>& matches) {
@@ -89,32 +109,6 @@ protected:
             }
         }
     }
-
-    void applyWeights(const PointCloud& source, const PointCloud& target, std::vector<Match> &matches){
-
-        // Constant //
-        if(weightingMethod == 0)
-            return;
-        else if(weightingMethod == 1)
-            buildWeightsBasedOnDistances(source, target, matches);
-        else if(weightingMethod == 2)
-            buildWeightsBasedOnNormals(source, target, matches);
-        else if(weightingMethod == 3)
-            buildWeightsBasedOnColors(source, target, matches);
-    }
-
-    void buildWeightsBasedOnDistances(const PointCloud& source, const PointCloud& target, std::vector<Match> &matches){
-        return;
-    }
-
-    void buildWeightsBasedOnNormals(const PointCloud& source, const PointCloud& target, std::vector<Match> &matches){
-        return;
-    }
-
-    void buildWeightsBasedOnColors(const PointCloud& source, const PointCloud& target, std::vector<Match> &matches){
-        return;
-    }
-
 };
 
 
@@ -126,9 +120,21 @@ public:
     CeresICPOptimizer() {}
 
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) override {
-        
+        clock_t step_start, step_end, start, begin, end, tot_time;
+
+        start = clock();
+
+        step_start = clock();
         // 1. Selection step //
+        // Initialize selection step //
         auto sourceSelection = PointSelection(source, selectionMethod, proba);
+        m_timeMeasure->selectionTime += double(clock() - step_start) / CLOCKS_PER_SEC;
+
+
+        // Initialize weighting step //
+        auto weightingStep = WeightingMethod(this->weightingMethod, this->maxDistance);
+
+        // Initialize matching step // 
 
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
         m_nearestNeighborSearch->buildIndex(target.getPoints());
@@ -143,28 +149,42 @@ public:
         poseIncrement.setZero();
 
         for (int i = 0; i < m_nIterations; ++i) {
+
             // Compute the matches.
             std::cout << "Matching points ..." << std::endl;
-            clock_t begin = clock();
+            begin = clock();
 
+            // 1. Selection Step // 
             // Change source to sourceSelection to do selection.
             if (selectionMethod == RANDOM_SAMPLING) // Resample each iteration
                 sourceSelection.resample();
+            
             auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
             auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
             std::cout << "Number of source points to match = " << transformedPoints.size() << std::endl;
 
+            step_start = clock();
             //2. Matching step //
             auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
+            m_timeMeasure->matchingTime += double(clock() - step_start) / CLOCKS_PER_SEC;
           
+            step_start = clock();
             // 3. Weighting step // 
-            applyWeights(source, target, matches);
+            std::vector<Vector3uc>  transformedColors; // Dummy - empty 
+            std::vector<Vector3uc>  targetColors; // Dummy - empty 
+            
+            weightingStep.applyWeights(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), 
+                                       transformedColors, targetColors, matches);
 
+            m_timeMeasure->weighingTime += double(clock() - step_start) / CLOCKS_PER_SEC;
+            step_start = clock();
             // 4. Rejection step //
-            if(rejectionMethod == 1)
+            if (rejectionMethod == 1)
                 pruneCorrespondences(transformedNormals, target.getNormals(), matches);
+            m_timeMeasure->rejectionTime += double(clock() - step_start) / CLOCKS_PER_SEC;
 
-            clock_t end = clock();
+            // TODO : What to do with this part?
+            end = clock();
             double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
             std::cout << "Completed in " << elapsedSecs << " seconds." << std::endl;
 
@@ -189,6 +209,8 @@ public:
                 }
             }
 
+            step_start = clock();
+
             // Prepare point-to-point and point-to-plane constraints.
             ceres::Problem problem;
             if(metric == 0)
@@ -209,6 +231,8 @@ public:
             std::cout << summary.BriefReport() << std::endl;
             //std::cout << summary.FullReport() << std::endl;
 
+            m_timeMeasure->solverTime += double(clock() - step_start) / CLOCKS_PER_SEC;
+
             // Update the current pose estimate (we always update the pose from the left, using left-increment notation).
             Matrix4f matrix = PoseIncrement<double>::convertToMatrix(poseIncrement);
             estimatedPose = PoseIncrement<double>::convertToMatrix(poseIncrement) * estimatedPose;
@@ -216,6 +240,8 @@ public:
 
             std::cout << "Optimization iteration done." << std::endl;
         }
+
+        m_timeMeasure->convergenceTime += double(clock() - start) / CLOCKS_PER_SEC;
 
         // Store result
         initialPose = estimatedPose;
@@ -266,12 +292,18 @@ private:
             if (match.idx >= 0) {
                 const auto& sourcePoint = sourcePoints[i];
                 const auto& targetPoint = targetPoints[match.idx];
-
+                
                 if (!sourcePoint.allFinite() || !targetPoint.allFinite())
                     continue;
 
                 // TODO: Create a new point-to-point cost function and add it as constraint (i.e. residual block) 
                 // to the Ceres problem.
+                problem.AddResidualBlock(
+                    new ceres::AutoDiffCostFunction<PointToPointConstraint, 3, 6>(
+                        new PointToPointConstraint(sourcePoint, targetPoint, match.weight)
+                    ),
+                    nullptr, poseIncrement.getData()
+                );
 
                 const auto& targetNormal = targetNormals[match.idx];
 
@@ -366,9 +398,13 @@ public:
 
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) override {
         
+        clock_t start = clock();
         // 1. Selection step //
+        // Initialize selection step //
         auto sourceSelection = PointSelection(source, selectionMethod, proba);
 
+        // Initialize weightingStep step //
+        auto weightingStep = WeightingMethod(this->weightingMethod, this->maxDistance);
         
         // Change PointCloud source to PointSelection source
         
@@ -383,30 +419,43 @@ public:
             std::cout << "Matching points ..." << std::endl;
             clock_t begin = clock();
 
+            // 1. Selection step //
             // Change source to sourceSelection to do selection.
             if (selectionMethod == RANDOM_SAMPLING) // Resample each iteration
                 sourceSelection.resample();
+            
             auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
             auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
             std::cout << "Number of source points to match = " << transformedPoints.size() << std::endl;
 
-            // 2. Matching step // 
+            start = clock();
+            //2. Matching step //
             auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
-            
-            // 3. Weighting step // 
-            applyWeights(source, target, matches);
+            m_timeMeasure->matchingTime += double(clock() - start) / CLOCKS_PER_SEC;
 
+            start = clock();
+            // 3. Weighting step // 
+            std::vector<Vector3uc>  transformedColors; // Dummy - empty 
+            std::vector<Vector3uc>  targetColors; // Dummy - empty 
+            
+            weightingStep.applyWeights(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), 
+                                       transformedColors, targetColors, matches);
+
+            m_timeMeasure->weighingTime += double(clock() - start) / CLOCKS_PER_SEC;
+            start = clock();
             // 4. Rejection step //
-            if(rejectionMethod == 1)
+            if (rejectionMethod == 1)
                 pruneCorrespondences(transformedNormals, target.getNormals(), matches);
+            m_timeMeasure->rejectionTime += double(clock() - start) / CLOCKS_PER_SEC;
 
             clock_t end = clock();
             double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
             std::cout << "Completed in " << elapsedSecs << " seconds." << std::endl;
+            //TODO : Check if this measurement point is correct
+            m_timeMeasure->convergenceTime += double(end - begin) / CLOCKS_PER_SEC;
 
             std::vector<Vector3f> sourcePoints;
             std::vector<Vector3f> targetPoints;
-            // Add correspondences source and target normals.
             std::vector<Vector3f> sourceNormals;
             std::vector<Vector3f> targetNormals;
 
@@ -418,7 +467,6 @@ public:
                 if (match.idx >= 0) {
                     sourcePoints.push_back(transformedPoints[j]);
                     targetPoints.push_back(target.getPoints()[match.idx]);
-                    
                     sourceNormals.push_back(transformedNormals[j]);
                     targetNormals.push_back(target.getNormals()[match.idx]);
                 }
@@ -426,7 +474,6 @@ public:
 
             // Estimate the new pose
             if (metric == 1) {
-                // FIXME fix target normals - fixed
                 estimatedPose = estimatePosePointToPlane(sourcePoints, targetPoints, targetNormals) * estimatedPose;
             }
             else if(metric == 0) {
@@ -564,9 +611,6 @@ private:
         return estimatedPose;
     }
 
-    /**
-     * Linear approximation of Symmetric ICP
-     */
     Matrix4f estimatePoseSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, 
             const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals) {
         const unsigned nPoints = sourcePoints.size();
