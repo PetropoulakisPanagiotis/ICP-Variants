@@ -26,7 +26,9 @@ class WeightingMethod{
         }
 
         float calculateNormalsWeight(const Vector3f& sourceNormal, const Vector3f& targetNormal){
-            return 1.0;
+            
+            return sourceNormal.dot(targetNormal);
+
         }
 
         float calculateColorsWeight(const Vector3uc& sourceColor, const Vector3uc& targetColor){
@@ -81,13 +83,12 @@ class WeightingMethod{
                 // Fix weight of current correspondence // 
                 matches[i].weight = matchNewWeight;
 
-                /* Debug
+                /*   
                 if(matchNewWeight > 1 || matchNewWeight < 0){
                     std::cout << "ops\n";
                 }
                 std::cout << matchNewWeight << std::endl;
                 */
-
             } // End for
         }
 };
