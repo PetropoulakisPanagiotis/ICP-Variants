@@ -18,13 +18,18 @@
 
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
-#define USE_POINT_TO_PLANE	1
-#define USE_LINEAR_ICP		0
+#define MATCHING_METHOD     1 // 1 -> projective, 0 -> knn
+#define SELECTION_METHOD    0 // 0 -> all, 1 -> random
+#define WEIGHTING_METHOD    2 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors, 4-> hybrid
+
+#define USE_LINEAR_ICP		1 // Optimization method
+
+#define USE_POINT_TO_PLANE	0 // Objectives - Set only one to true 
+#define USE_SYMMETRIC	    1
 
 #define RUN_SHAPE_ICP		1
 #define RUN_SEQUENCE_ICP	0
 #define RUN_ETH_ICP			0
-
 
 int alignBunnyWithICP() {
 	// Load the source and target mesh.
@@ -32,17 +37,23 @@ int alignBunnyWithICP() {
 
 	// Estimate the pose from source to target mesh with ICP optimization.
 	ICPOptimizer* optimizer = nullptr;
-	if (USE_LINEAR_ICP) {
+	
+    // 5. Set minimization method //
+    if (USE_LINEAR_ICP) {
 		optimizer = new LinearICPOptimizer();
 	}
 	else {
 		optimizer = new CeresICPOptimizer();
 	}
 	
-    // Square distance //
-	optimizer->setMatchingMaxDistance(0.0003f);
+
+    // 6. Set objective // 
 	if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
+		optimizer->setNbOfIterations(20);
+	}
+	else if (USE_SYMMETRIC) {
+		optimizer->setMetric(2);
 		optimizer->setNbOfIterations(20);
 	}
 	else {
@@ -50,13 +61,28 @@ int alignBunnyWithICP() {
 		optimizer->setNbOfIterations(20);
 	}
 
-	// TODO: Test uniform sampling
-	//optimizer->setSelectionMethod(UNIFORM_SAMPLING, 0.5);
-	optimizer->setSelectionMethod(SELECT_ALL);
-	// optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.5); // Resample points each iteration.
+    // 1. Set matching set  //
+    // Always knn for bunny //
+    optimizer->setMatchingMethod(0);
+	optimizer->setMatchingMaxDistance(0.0003f);
 
-    // Weighting step //
-    optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
+    // 2. Set selection method //
+    if(SELECTION_METHOD)
+	    optimizer->setSelectionMethod(RANDOM_SAMPLING);
+    else
+	    optimizer->setSelectionMethod(SELECT_ALL);
+
+    // 3. Set weighting method //
+    if(WEIGHTING_METHOD == 1)
+        optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
+    else if(WEIGHTING_METHOD == 2)
+        optimizer->setWeightingMethod(NORMALS_WEIGHTING);
+    else if(WEIGHTING_METHOD == 3)
+        optimizer->setWeightingMethod(COLORS_WEIGHTING);
+    else if(WEIGHTING_METHOD == 4)
+        optimizer->setWeightingMethod(HYBRID_WEIGHTING);
+    else
+        optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
 
 	// load the sample
 	Sample input = bunny_data_loader.getItem(0);
@@ -96,8 +122,6 @@ int alignBunnyWithICP() {
 
 	// Calculate time
 	timeMeasure.calculateIterationTime();
-
-
 	
 	// Visualize the resulting joined mesh. We add triangulated spheres for point matches.
 	SimpleMesh resultingMesh = SimpleMesh::joinMeshes(bunny_data_loader.getSourceMesh(), bunny_data_loader.getTargetMesh(), estimatedPose);
@@ -139,10 +163,12 @@ int reconstructRoom() {
 
 	// We store a first frame as a reference frame. All next frames are tracked relatively to the first frame.
 	sensor.processNextFrame();
-	PointCloud target{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight() };
-	
-	// Setup the optimizer.
+	PointCloud target{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), true};
+
+    // Setup the optimizer.
 	ICPOptimizer* optimizer = nullptr;
+
+    // 5. Set minimization method //
 	if (USE_LINEAR_ICP) {
 		optimizer = new LinearICPOptimizer();
 	}
@@ -150,8 +176,8 @@ int reconstructRoom() {
 		optimizer = new CeresICPOptimizer();
 	}
 
-	optimizer->setMatchingMaxDistance(0.1f);
-	if (USE_POINT_TO_PLANE) {
+    // 6. Set objective //
+    if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
 		optimizer->setNbOfIterations(10);
 	}
@@ -160,13 +186,43 @@ int reconstructRoom() {
 		optimizer->setNbOfIterations(20);
 	}
 
-	// We store the estimated camera poses.
+    // 1. Set matching step //
+    if(MATCHING_METHOD){
+        optimizer->setMatchingMethod(1);
+        optimizer->setCameraParamsMatchingMethod(sensor.getDepthIntrinsics(),sensor.getDepthImageWidth(), sensor.getDepthImageHeight());
+    }
+
+    optimizer->setMatchingMaxDistance(0.1f);
+
+    // 2. Set selection method //
+    if(SELECTION_METHOD)
+	    optimizer->setSelectionMethod(RANDOM_SAMPLING);
+    else
+	    optimizer->setSelectionMethod(SELECT_ALL);
+
+    // 3. Set weighting method //
+    if(WEIGHTING_METHOD == 1)
+        optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
+    else if(WEIGHTING_METHOD == 2)
+        optimizer->setWeightingMethod(NORMALS_WEIGHTING);
+    else if(WEIGHTING_METHOD == 3)
+        optimizer->setWeightingMethod(COLORS_WEIGHTING);
+    else if(WEIGHTING_METHOD == 4)
+        optimizer->setWeightingMethod(HYBRID_WEIGHTING);
+    else
+        optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
+
+    // Create a Time Profiler
+	auto timeMeasure = TimeMeasure();
+	optimizer->setTimeMeasure(timeMeasure);
+
+    // We store the estimated camera poses.
 	std::vector<Matrix4f> estimatedPoses;
 	Matrix4f currentCameraToWorld = Matrix4f::Identity();
 	estimatedPoses.push_back(currentCameraToWorld.inverse());
 
 	int i = 0;
-	const int iMax = 50;
+	const int iMax = 50; //50
 	while (sensor.processNextFrame() && i <= iMax) {
 		float* depthMap = sensor.getDepth();
 		Matrix3f depthIntrinsics = sensor.getDepthIntrinsics();
@@ -174,8 +230,8 @@ int reconstructRoom() {
 
 		// Estimate the current camera pose from source to target mesh with ICP optimization.
 		// We downsample the source image to speed up the correspondence matching.
-		PointCloud source{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), 8 };
-		optimizer->estimatePose(source, target, currentCameraToWorld);
+		PointCloud source{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), false, 8 };
+        optimizer->estimatePose(source, target, currentCameraToWorld);
 		
 		// Invert the transformation matrix to get the current camera pose.
 		Matrix4f currentCameraPose = currentCameraToWorld.inverse();

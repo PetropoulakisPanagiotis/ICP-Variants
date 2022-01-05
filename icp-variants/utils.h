@@ -114,3 +114,46 @@ std::vector<Vector3f> transformNormals(const std::vector<Vector3f>& sourceNormal
 
     return transformedNormals;
 }
+
+// Compute mean of points
+Vector3f computeMean(const std::vector<Vector3f>& points) {
+    // TODO: Assert num points > 0
+    ASSERT(points.size() > 0 && "Number of points must be positive.");
+    Vector3f mean = Vector3f::Zero();
+    for (auto point: points) {
+        mean += point;
+    }
+    mean /= points.size();
+    return mean;
+}
+
+// Derive translation matrix 
+// T * (x 1) = (x+t 1)
+Matrix4f gettranslationMatrix(const Vector3f& translation) {
+    // Start with identity 4x4 matrix and fill in last column
+    Matrix4f matrix = Matrix4f::Identity();
+    matrix(0,3) = translation[0];
+    matrix(1,3) = translation[1];
+    matrix(2,3) = translation[2];
+    return matrix;
+}
+
+// Derive cross product matrix
+// aka. k x v = K * v
+Matrix3f crossProductMatrix(const Vector3f& k) {
+    Matrix3f matrix = Matrix3f::Zero(); // Not Identity but Zero
+    // Fill in value
+                        matrix(0,1) = -k.z(); matrix(0,2) = k.y();
+    matrix(1,0) = k.z();                        matrix(1,2) = -k.x();
+    matrix(2,0) = -k.y(); matrix(2,1) = k.x();
+    return matrix;
+}
+
+// Derive rodrigues matrix from axis and rotation angle
+// R = I + sin(theta) * K + (1 - cos(theta)) * K * K
+Matrix3f getRodriguesMatrix(const Vector3f& axis, const float& sin_theta, const float& cos_theta) {
+    Matrix3f matrix = Matrix3f::Identity();
+    Matrix3f K = crossProductMatrix(axis);
+    matrix += sin_theta * K + (1 - cos_theta) * K * K;
+    return matrix;
+}
