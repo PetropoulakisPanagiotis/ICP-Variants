@@ -20,10 +20,11 @@
 
 #define MATCHING_METHOD     1 // 1 -> projective, 0 -> knn
 #define SELECTION_METHOD    0 // 0 -> all, 1 -> random
-#define WEIGHTING_METHOD    1 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors, 4-> hybrid
+#define WEIGHTING_METHOD    2 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors, 4-> hybrid
 
-#define USE_POINT_TO_PLANE	0
-#define USE_LINEAR_ICP		1
+#define USE_LINEAR_ICP		0 // Optimization method
+
+#define USE_POINT_TO_PLANE	0 // Objectives - Set only one to true 
 #define USE_SYMMETRIC	    1
 
 #define RUN_SHAPE_ICP		1
@@ -36,15 +37,17 @@ int alignBunnyWithICP() {
 
 	// Estimate the pose from source to target mesh with ICP optimization.
 	ICPOptimizer* optimizer = nullptr;
-	if (USE_LINEAR_ICP) {
+	
+    // 5. Set minimization method //
+    if (USE_LINEAR_ICP) {
 		optimizer = new LinearICPOptimizer();
 	}
 	else {
 		optimizer = new CeresICPOptimizer();
 	}
 	
-    // Square distance //
-	optimizer->setMatchingMaxDistance(0.0003f);
+
+    // 6. Set objective // 
 	if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
 		optimizer->setNbOfIterations(20);
@@ -58,12 +61,28 @@ int alignBunnyWithICP() {
 		optimizer->setNbOfIterations(20);
 	}
 
-	// TODO: Test uniform sampling
-	optimizer->setSelectionMethod(SELECT_ALL);
-	// optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.5); // Resample points each iteration.
+    // 1. Set matching set  //
+    // Always knn for bunny //
+    optimizer->setMatchingMethod(0);
+	optimizer->setMatchingMaxDistance(0.0003f);
 
-    // Weighting step //
-    optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
+    // 2. Set selection method //
+    if(SELECTION_METHOD)
+	    optimizer->setSelectionMethod(RANDOM_SAMPLING);
+    else
+	    optimizer->setSelectionMethod(SELECT_ALL);
+
+    // 3. Set weighting method //
+    if(WEIGHTING_METHOD == 1)
+        optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
+    else if(WEIGHTING_METHOD == 2)
+        optimizer->setWeightingMethod(NORMALS_WEIGHTING);
+    else if(WEIGHTING_METHOD == 3)
+        optimizer->setWeightingMethod(COLORS_WEIGHTING);
+    else if(WEIGHTING_METHOD == 4)
+        optimizer->setWeightingMethod(HYBRID_WEIGHTING);
+    else
+        optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
 
 	// load the sample
 	Sample input = bunny_data_loader.getItem(0);
@@ -103,8 +122,6 @@ int alignBunnyWithICP() {
 
 	// Calculate time
 	timeMeasure.calculateIterationTime();
-
-
 	
 	// Visualize the resulting joined mesh. We add triangulated spheres for point matches.
 	SimpleMesh resultingMesh = SimpleMesh::joinMeshes(bunny_data_loader.getSourceMesh(), bunny_data_loader.getTargetMesh(), estimatedPose);

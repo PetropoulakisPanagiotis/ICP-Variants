@@ -56,7 +56,8 @@ public:
     }
 
 
-    void apply_inv(T* inputPoint, T* outputPoint) const {
+    /* Note: no translation is being added */
+    void apply_inv_rotation(T* inputPoint, T* outputPoint) const {
         // pose[0,1,2] is angle-axis rotation.
         // pose[3,4,5] is translation.
         const T* rotation = m_array;
