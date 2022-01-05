@@ -26,7 +26,7 @@ class WeightingMethod{
         }
 
         float calculateNormalsWeight(const Vector3f& sourceNormal, const Vector3f& targetNormal){
-
+            
             return sourceNormal.dot(targetNormal);
 
         }
@@ -83,13 +83,12 @@ class WeightingMethod{
                 // Fix weight of current correspondence // 
                 matches[i].weight = matchNewWeight;
 
-                /* Debug
+                /*   
                 if(matchNewWeight > 1 || matchNewWeight < 0){
                     std::cout << "ops\n";
                 }
                 std::cout << matchNewWeight << std::endl;
                 */
-
             } // End for
         }
 };
