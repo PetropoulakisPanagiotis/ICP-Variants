@@ -22,7 +22,7 @@
 #define SELECTION_METHOD    0 // 0 -> all, 1 -> random
 #define WEIGHTING_METHOD    2 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors, 4-> hybrid
 
-#define USE_LINEAR_ICP		1 // Optimization method
+#define USE_LINEAR_ICP		0 // Optimization method
 
 #define USE_POINT_TO_PLANE	0 // Objectives - Set only one to true 
 #define USE_SYMMETRIC	    1
