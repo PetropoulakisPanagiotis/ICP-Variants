@@ -188,6 +188,27 @@ public:
             double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
             std::cout << "Completed in " << elapsedSecs << " seconds." << std::endl;
 
+
+            std::vector<Vector3f> sourcePoints;
+            std::vector<Vector3f> targetPoints;
+            // Add correspondences source and target normals.
+            std::vector<Vector3f> sourceNormals;
+            std::vector<Vector3f> targetNormals;
+
+            // Add all matches to the sourcePoints and targetPoints vector,
+            // so that the sourcePoints[i] matches targetPoints[i]. For every source point,
+            // the matches vector holds the index of the matching target point.
+            for (int j = 0; j < transformedPoints.size(); j++) {
+                const auto& match = matches[j];
+                if (match.idx >= 0) {
+                    sourcePoints.push_back(transformedPoints[j]);
+                    targetPoints.push_back(target.getPoints()[match.idx]);
+
+                    sourceNormals.push_back(transformedNormals[j]);
+                    targetNormals.push_back(target.getNormals()[match.idx]);
+                }
+            }
+
             step_start = clock();
 
             // Prepare point-to-point and point-to-plane constraints.
@@ -196,6 +217,8 @@ public:
                 prepareConstraintsPointICP(transformedPoints, target.getPoints(), target.getNormals(), matches, poseIncrement, problem);
             else if(metric == 1)
                 prepareConstraintsPlaneICP(transformedPoints, target.getPoints(), target.getNormals(), matches, poseIncrement, problem);
+            else if(metric == 2)
+                prepareConstraintsSymmetricICP(sourcePoints, targetPoints, sourceNormals, targetNormals, matches, poseIncrement, problem);
 
             // Configure options for the solver.
             ceres::Solver::Options options;
@@ -333,38 +356,33 @@ private:
         */
     }
 
-    void prepareConstraintsSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
+    void prepareConstraintsSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
         const unsigned nPoints = sourcePoints.size();
-        /*
+        std::cout << "Symmetric ICP Non-linear" << std::endl;
+        
         for (unsigned i = 0; i < nPoints; ++i) {
             const auto match = matches[i];
-            if (match.idx >= 0) {
-                const auto& sourcePoint = sourcePoints[i];
-                const auto& targetPoint = targetPoints[match.idx];
 
-                if (!sourcePoint.allFinite() || !targetPoint.allFinite())
-                    continue;
-
-                // TODO: Create a new point-to-point cost function and add it as constraint (i.e. residual block) 
-                // to the Ceres problem.
-
-                const auto& targetNormal = targetNormals[match.idx];
-
-                if (!targetNormal.allFinite())
-                    continue;
-
-                // TODO: Create a new point-to-plane cost function and add it as constraint (i.e. residual block) 
-                // to the Ceres problem.
-                problem.AddResidualBlock(
-                    new ceres::AutoDiffCostFunction<PointToPlaneConstraint, 1, 6>(
-                        new PointToPlaneConstraint(sourcePoint, targetPoint, targetNormal, match.weight)
+            const auto& sourcePoint = sourcePoints[i];
+            const auto& targetPoint = targetPoints[i];
+            
+            if (!sourcePoint.allFinite() || !targetPoint.allFinite())
+                continue;
+            
+            const auto& sourceNormal = sourceNormals[i];
+            const auto& targetNormal = targetNormals[i];
+            
+            if (!targetNormal.allFinite() || !sourceNormal.allFinite())
+                continue;
+            
+            problem.AddResidualBlock(
+                new ceres::AutoDiffCostFunction<SymmetricConstraint, 1, 6>(
+                    new SymmetricConstraint(sourcePoint, targetPoint, sourceNormal, targetNormal)
                     ),
-                    nullptr, poseIncrement.getData()
-                );
-
-            }
+                nullptr, poseIncrement.getData()
+            );
         }
-        */
+        
     }
 
 };
