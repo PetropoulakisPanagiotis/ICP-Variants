@@ -220,7 +220,6 @@ public:
             else if(metric == 2)
                 prepareConstraintsSymmetricICP(sourcePoints, targetPoints, sourceNormals, targetNormals, matches, poseIncrement, problem);
 
-
             // Configure options for the solver.
             ceres::Solver::Options options;
             configureSolver(options);

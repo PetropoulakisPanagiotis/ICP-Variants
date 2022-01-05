@@ -125,7 +125,7 @@ public:
 
         /* Use casting for m_sourcePoint and apply transformation */
         poseIncrement.apply(m_sourcePointTemp, m_sourcePointTransformed);
-        poseIncrement.apply_inv(m_targetPointTemp, m_targetPointTransformed);
+        poseIncrement.apply_inv_rotation(m_targetPointTemp, m_targetPointTransformed);
 
         T x_component = ((T)this->m_targetNormal[0] + (T)this->m_sourceNormal[0]) * (m_sourcePointTransformed[0] - m_targetPointTransformed[0]);
         T y_component = ((T)this->m_targetNormal[1] + (T)this->m_sourceNormal[1]) * (m_sourcePointTransformed[1] - m_targetPointTransformed[1]);
@@ -145,8 +145,8 @@ public:
 protected:
     const Vector3f m_sourcePoint;
     const Vector3f m_targetPoint;
-    const Vector3f m_targetNormal;
     const Vector3f m_sourceNormal;
+    const Vector3f m_targetNormal;
     const float LAMBDA = 1.0f;
 };
 
