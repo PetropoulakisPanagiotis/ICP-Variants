@@ -170,11 +170,9 @@ public:
           
             step_start = clock();
             // 3. Weighting step // 
-            std::vector<Vector3uc>  transformedColors; // Dummy - empty 
-            std::vector<Vector3uc>  targetColors; // Dummy - empty 
             
             weightingStep.applyWeights(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), 
-                                       transformedColors, targetColors, matches);
+                                       sourceSelection.getColors(), target.getColors(), matches);
 
             m_timeMeasure->weighingTime += double(clock() - step_start) / CLOCKS_PER_SEC;
             step_start = clock();
@@ -434,11 +432,8 @@ public:
 
             start = clock();
             // 3. Weighting step // 
-            std::vector<Vector3uc>  transformedColors; // Dummy - empty 
-            std::vector<Vector3uc>  targetColors; // Dummy - empty 
-            
             weightingStep.applyWeights(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), 
-                                       transformedColors, targetColors, matches);
+                                       sourceSelection.getColors(), target.getColors(), matches);
 
             m_timeMeasure->weighingTime += double(clock() - start) / CLOCKS_PER_SEC;
             start = clock();
