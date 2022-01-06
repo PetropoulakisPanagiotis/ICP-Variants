@@ -37,6 +37,7 @@ icp-variants/Build
 icp-variants/build
 icp-variants/CMakeSettings.json
 .vs
+*/.swp
 
 # VSCode
 .DS_Store

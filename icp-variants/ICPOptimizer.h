@@ -56,6 +56,15 @@ public:
 
     void setMatchingMethod(unsigned int matchingMethod) {
         this->matchingMethod = matchingMethod;
+
+        if(matchingMethod == 0) 
+            m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchFlann>();
+        else
+            m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchProjective>();
+    }
+
+    void setCameraParamsMatchingMethod(const Eigen::Matrix3f& depthIntrinsics, const unsigned width, const unsigned height) {
+        m_nearestNeighborSearch->setCameraParams(depthIntrinsics, width, height);
     }
 
     void setNbOfIterations(unsigned nIterations) {
@@ -179,6 +188,27 @@ public:
             double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
             std::cout << "Completed in " << elapsedSecs << " seconds." << std::endl;
 
+
+            std::vector<Vector3f> sourcePoints;
+            std::vector<Vector3f> targetPoints;
+            // Add correspondences source and target normals.
+            std::vector<Vector3f> sourceNormals;
+            std::vector<Vector3f> targetNormals;
+
+            // Add all matches to the sourcePoints and targetPoints vector,
+            // so that the sourcePoints[i] matches targetPoints[i]. For every source point,
+            // the matches vector holds the index of the matching target point.
+            for (int j = 0; j < transformedPoints.size(); j++) {
+                const auto& match = matches[j];
+                if (match.idx >= 0) {
+                    sourcePoints.push_back(transformedPoints[j]);
+                    targetPoints.push_back(target.getPoints()[match.idx]);
+
+                    sourceNormals.push_back(transformedNormals[j]);
+                    targetNormals.push_back(target.getNormals()[match.idx]);
+                }
+            }
+
             step_start = clock();
 
             // Prepare point-to-point and point-to-plane constraints.
@@ -187,6 +217,8 @@ public:
                 prepareConstraintsPointICP(transformedPoints, target.getPoints(), target.getNormals(), matches, poseIncrement, problem);
             else if(metric == 1)
                 prepareConstraintsPlaneICP(transformedPoints, target.getPoints(), target.getNormals(), matches, poseIncrement, problem);
+            else if(metric == 2)
+                prepareConstraintsSymmetricICP(sourcePoints, targetPoints, sourceNormals, targetNormals, matches, poseIncrement, problem);
 
             // Configure options for the solver.
             ceres::Solver::Options options;
@@ -265,6 +297,12 @@ private:
 
                 // TODO: Create a new point-to-point cost function and add it as constraint (i.e. residual block) 
                 // to the Ceres problem.
+                problem.AddResidualBlock(
+                    new ceres::AutoDiffCostFunction<PointToPointConstraint, 3, 6>(
+                        new PointToPointConstraint(sourcePoint, targetPoint, match.weight)
+                    ),
+                    nullptr, poseIncrement.getData()
+                );
 
                 const auto& targetNormal = targetNormals[match.idx];
 
@@ -318,38 +356,33 @@ private:
         */
     }
 
-    void prepareConstraintsSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
+    void prepareConstraintsSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
         const unsigned nPoints = sourcePoints.size();
-        /*
+        std::cout << "Symmetric ICP Non-linear" << std::endl;
+        
         for (unsigned i = 0; i < nPoints; ++i) {
             const auto match = matches[i];
-            if (match.idx >= 0) {
-                const auto& sourcePoint = sourcePoints[i];
-                const auto& targetPoint = targetPoints[match.idx];
 
-                if (!sourcePoint.allFinite() || !targetPoint.allFinite())
-                    continue;
-
-                // TODO: Create a new point-to-point cost function and add it as constraint (i.e. residual block) 
-                // to the Ceres problem.
-
-                const auto& targetNormal = targetNormals[match.idx];
-
-                if (!targetNormal.allFinite())
-                    continue;
-
-                // TODO: Create a new point-to-plane cost function and add it as constraint (i.e. residual block) 
-                // to the Ceres problem.
-                problem.AddResidualBlock(
-                    new ceres::AutoDiffCostFunction<PointToPlaneConstraint, 1, 6>(
-                        new PointToPlaneConstraint(sourcePoint, targetPoint, targetNormal, match.weight)
+            const auto& sourcePoint = sourcePoints[i];
+            const auto& targetPoint = targetPoints[i];
+            
+            if (!sourcePoint.allFinite() || !targetPoint.allFinite())
+                continue;
+            
+            const auto& sourceNormal = sourceNormals[i];
+            const auto& targetNormal = targetNormals[i];
+            
+            if (!targetNormal.allFinite() || !sourceNormal.allFinite())
+                continue;
+            
+            problem.AddResidualBlock(
+                new ceres::AutoDiffCostFunction<SymmetricConstraint, 1, 6>(
+                    new SymmetricConstraint(sourcePoint, targetPoint, sourceNormal, targetNormal)
                     ),
-                    nullptr, poseIncrement.getData()
-                );
-
-            }
+                nullptr, poseIncrement.getData()
+            );
         }
-        */
+        
     }
 
 };
@@ -422,6 +455,8 @@ public:
 
             std::vector<Vector3f> sourcePoints;
             std::vector<Vector3f> targetPoints;
+            std::vector<Vector3f> sourceNormals;
+            std::vector<Vector3f> targetNormals;
 
             // Add all matches to the sourcePoints and targetPoints vector,
             // so that the sourcePoints[i] matches targetPoints[i]. For every source point,
@@ -431,15 +466,20 @@ public:
                 if (match.idx >= 0) {
                     sourcePoints.push_back(transformedPoints[j]);
                     targetPoints.push_back(target.getPoints()[match.idx]);
+                    sourceNormals.push_back(transformedNormals[j]);
+                    targetNormals.push_back(target.getNormals()[match.idx]);
                 }
             }
 
             // Estimate the new pose
             if (metric == 1) {
-                estimatedPose = estimatePosePointToPlane(sourcePoints, targetPoints, target.getNormals()) * estimatedPose;
+                estimatedPose = estimatePosePointToPlane(sourcePoints, targetPoints, targetNormals) * estimatedPose;
             }
             else if(metric == 0) {
                 estimatedPose = estimatePosePointToPoint(sourcePoints, targetPoints) * estimatedPose;
+            }
+            else if(metric == 2) {
+                estimatedPose = estimatePoseSymmetricICP(sourcePoints, targetPoints, sourceNormals, targetNormals) * estimatedPose;
             }
 
             std::cout << "Optimization iteration done." << std::endl;
@@ -570,8 +610,79 @@ private:
         return estimatedPose;
     }
 
-    Matrix4f estimatePoseSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals) {
+    Matrix4f estimatePoseSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, 
+            const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals) {
+        const unsigned nPoints = sourcePoints.size();
+
+        // Build the system
+        MatrixXf A = MatrixXf::Zero(nPoints, 6);
+        VectorXf b = VectorXf::Zero(nPoints);
+
+        // Normalize source and target points to center (0,0,0)
+        // Todo Compute mean
+        Vector3f meanSource = computeMean(sourcePoints);
+        Vector3f meanTarget = computeMean(targetPoints);
+
+        for (unsigned i = 0; i < nPoints; i++) {
+            const auto& s = sourcePoints[i];
+            const auto& d = targetPoints[i];
+            const auto& n = targetNormals[i];
+
+            // FIXME Verify this
+            Vector3f s_normalized = s - meanSource;
+            Vector3f d_normalized = d - meanTarget;
+
+            Vector3f normal_sum = targetNormals[i] + sourceNormals[i];
+            // b
+            b(i) = (d_normalized - s_normalized).dot(normal_sum);
+
+            // Add the Symmetric constraints to the system
+            A.row(i).segment(0, 3) = (s_normalized + d_normalized).cross(normal_sum);
+            A.row(i).segment(3, 3) = normal_sum;
+        }
+
+        // Solve the system
+        // Option 1: Using LU solver
+        VectorXf x(6);
+        MatrixXf m_systemMatrix = A.transpose() * A;
+		VectorXf m_rhs = A.transpose() * b;
+
+		// Optionally: regularizer -> smoother surface
+		// pushes the coefficients to zero
+		float lambda = 0.0001;
+		m_systemMatrix.diagonal() += lambda * lambda * VectorXf::Ones(6);
+
+        FullPivLU<Matrix<float, Dynamic, Dynamic>> LU(m_systemMatrix);
+	    // VectorXf m_coefficents;
+		x = LU.solve(m_rhs);
+
+        // Build the pose matrix using the rotation and translation matrices
+        // Using symmtric formula
+        // a_tilde = a * tan(theta) (||a|| = 1) => ||a_tilde|| = tan(theta)
+        // a = a_tilde / ||a_tilde||
+        // t = t_tilde * cos(theta)
+        // theta < pi (180)
+        Vector3f a_tilde = x.head(3);
+        Vector3f t_tilde = x.tail(3);
+        float tan_theta = a_tilde.norm(); // Assure a_tilde > 0
+        Vector3f a = a_tilde / tan_theta;
+        std::cout << "a length " << a.norm() <<  "tan_theta" << tan_theta << "\n";
+
+        // TODO compute angle theta; or its cos sin from a_tilde
+        // Sin, cos is positive or negative
+        float sin_theta = tan_theta / std::sqrt(1.0 + tan_theta * tan_theta);
+        float cos_theta = sin_theta / tan_theta; 
+        std::cout << "Cos theta: " << cos_theta << " - Sin theta: " << sin_theta << "\n";
+        Vector3f t = t_tilde * cos_theta; // Look good
+
+        // TODO Fix this
+        Matrix4f rodriguesMatrix =  Matrix4f::Identity();
+        rodriguesMatrix.block(0, 0, 3, 3) = getRodriguesMatrix(a, sin_theta, cos_theta);
+
         Matrix4f estimatedPose = Matrix4f::Identity();
+        // TODO Verify
+        estimatedPose = gettranslationMatrix(meanTarget) * rodriguesMatrix * gettranslationMatrix(t) 
+                * rodriguesMatrix * gettranslationMatrix(-meanSource);
     
         return estimatedPose;
     }
