@@ -12,26 +12,32 @@ class ETHDataLoader : public DataLoader {
 public:
 	ETHDataLoader() {
 		// CSVWriter is not our work!
-		// source:
-		// https://thispointer.com/how-to-read-data-from-a-csv-file-in-c/
-		// Create an object of CSVWriter
+		// source: https://thispointer.com/how-to-read-data-from-a-csv-file-in-c/
+        // Create an object of CSVWriter
 		CSVReader reader("../../Data/pose_scanner_leica.csv");
+
 		// Get the data from CSV File
 		poseList = reader.getData();
 
 		// only load the source file here
 		// Load the target based on the index in getItem()
-		std::cout << "Starting data loader for source point cloud" << std::endl;
-		const std::string filenameSource = std::string("../../Data/apartment/PointCloud0.pcd");
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source(new pcl::PointCloud<pcl::PointXYZ>);
-		if (pcl::io::loadPCDFile<pcl::PointXYZ>(filenameSource, *cloud_source) == -1) {
+        std::cout << "Starting data loader for source point cloud" << std::endl;
+		
+        const std::string filenameSource = std::string("../../Data/apartment/PointCloud0.pcd");
+		
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source(new pcl::PointCloud<pcl::PointXYZ>);
+		
+        if (pcl::io::loadPCDFile<pcl::PointXYZ>(filenameSource, *cloud_source) == -1) {
 			PCL_ERROR("Couldn't read source point cloud for apartment data");
 			throw std::runtime_error("Could not open file");
 		}
-		std::cout << "Loaded "
+		
+        std::cout << "Loaded "
 			<< cloud_source->width * cloud_source->height
 			<< " data points from source point cloud"
 			<< std::endl;
+
+        // Save source to our custom pointcloud structure (aka not pcl cloud) //
 		source_pc = PointCloud(cloud_source);
 	}
 
@@ -40,25 +46,33 @@ public:
 	}
 
 	Sample getItem(int index) {
-		if (index >= 44) {
+		
+        if (index >= 44) {
 			throw std::runtime_error("index out of range, only 44 samples available");
 		}
-		// Use the same dource point cloud every time
+		
+        // Use the same dource point cloud every time
 		Sample data;
 		data.source = source_pc;
 
 		// Load the correct target point cloud
 		std::cout << "Starting data loader for target point cloud" << std::endl;
-		const std::string filenameTarget = std::string("../../Data/apartment/PointCloud" + std::to_string(index + 1) + ".pcd");
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_target(new pcl::PointCloud<pcl::PointXYZ>);
-		if (pcl::io::loadPCDFile<pcl::PointXYZ>(filenameTarget, *cloud_target) == -1) {
+		
+        const std::string filenameTarget = std::string("../../Data/apartment/PointCloud" + std::to_string(index + 1) + ".pcd");
+		
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_target(new pcl::PointCloud<pcl::PointXYZ>);
+		
+        if (pcl::io::loadPCDFile<pcl::PointXYZ>(filenameTarget, *cloud_target) == -1) {
 			PCL_ERROR("Couldn't read target point cloud for apartment data");
 			throw std::runtime_error("Could not open file");
 		}
-		std::cout << "Loaded "
+		
+        std::cout << "Loaded "
 			<< cloud_target->width * cloud_target->height
 			<< " data points from target point cloud"
 			<< std::endl;
+
+        // Parse target pcl cloud to PointCloud //
 		data.target = PointCloud(cloud_target);
 
 		// Look for the correct row for the pose
@@ -74,7 +88,8 @@ public:
 				return data;
 			}
 		}
-		throw std::runtime_error(std::to_string(index + 1) + " not found as poseId in csv file");
+		
+        throw std::runtime_error(std::to_string(index + 1) + " not found as poseId in csv file");
 		
 	}
 
