@@ -28,8 +28,8 @@
 #define USE_SYMMETRIC	    1
 
 #define RUN_SHAPE_ICP		0
-#define RUN_SEQUENCE_ICP	0
-#define RUN_ETH_ICP			1
+#define RUN_SEQUENCE_ICP	1
+#define RUN_ETH_ICP			0
 
 int alignBunnyWithICP() {
 	// Load the source and target mesh.
@@ -167,7 +167,7 @@ int reconstructRoom() {
 
 	// We store a first frame as a reference frame. All next frames are tracked relatively to the first frame.
 	sensor.processNextFrame();
-	PointCloud target{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), true};
+	PointCloud target{ sensor.getDepth(), sensor.getColorRGBX(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), true};
 
     // Setup the optimizer.
 	ICPOptimizer* optimizer = nullptr;
@@ -234,7 +234,7 @@ int reconstructRoom() {
 
 		// Estimate the current camera pose from source to target mesh with ICP optimization.
 		// We downsample the source image to speed up the correspondence matching.
-		PointCloud source{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), false, 8 };
+		PointCloud source{ sensor.getDepth(), sensor.getColorRGBX(),sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), false, 8 };
         optimizer->estimatePose(source, target, currentCameraToWorld);
 		
 		// Invert the transformation matrix to get the current camera pose.

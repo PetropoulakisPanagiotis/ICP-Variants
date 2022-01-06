@@ -31,7 +31,7 @@ class WeightingMethod{
 
         }
 
-        float calculateColorsWeight(const Vector3uc& sourceColor, const Vector3uc& targetColor){
+        float calculateColorsWeight(const Vector4uc& sourceColor, const Vector4uc& targetColor){
             return 1.0;
         }
 
@@ -45,7 +45,7 @@ class WeightingMethod{
         // Apply a weighting method to the correspondences //  
         void applyWeights(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, 
                 const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals,
-                const std::vector<Vector3uc>& sourceColors, const std::vector<Vector3uc>& targetColors,
+                const std::vector<Vector4uc>& sourceColors, const std::vector<Vector4uc>& targetColors,
                 std::vector<Match> &matches){
 
             if(method == CONSTANT_WEIGHTING)
