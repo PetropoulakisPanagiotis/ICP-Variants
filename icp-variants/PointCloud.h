@@ -236,6 +236,13 @@ public:
         return true;
     }
 
+    void change_pose(const Matrix4f& pose) {
+        for (int i = 0; i < m_points.size(); i++) {
+            m_points[i] = (pose * Vector4f(m_points[i][0], m_points[i][1], m_points[i][2], 1.f)).head(3);
+            m_normals[i] = (pose * Vector4f(m_normals[i][0], m_normals[i][1], m_normals[i][2], 0.f)).head(3);
+        }
+    }
+
     std::vector<Vector3f>& getPoints() {
         return m_points;
     }
