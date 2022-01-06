@@ -77,6 +77,7 @@ set(HEADER_FILES
     TimeMeasure.h
     selection.h
     weighting.h
+    CSVReader.h
 )
 
 set(SOURCE_FILES 
