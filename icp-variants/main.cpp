@@ -108,6 +108,7 @@ int alignBunnyWithICP() {
 
 	// Create a Convergence Measure
 	auto convergenMearsure = ConvergenceMeasure(gtSourcePoints, gtTargetPoints);
+	optimizer->setConvergenceMeasure(convergenMearsure);
 
 	// Create a Time Profiler
 	auto timeMeasure = TimeMeasure();
@@ -122,6 +123,9 @@ int alignBunnyWithICP() {
 
 	// Calculate time
 	timeMeasure.calculateIterationTime();
+
+	// Print out RMSE errors of each iteration
+	convergenMearsure.outputAlignmentError();
 	
 	// Visualize the resulting joined mesh. We add triangulated spheres for point matches.
 	SimpleMesh resultingMesh = SimpleMesh::joinMeshes(bunny_data_loader.getSourceMesh(), bunny_data_loader.getTargetMesh(), estimatedPose);

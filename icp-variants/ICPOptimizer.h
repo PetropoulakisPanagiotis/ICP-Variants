@@ -16,6 +16,7 @@
 #include "selection.h"
 #include "TimeMeasure.h"
 #include "weighting.h"
+#include "ConvergenceMeasure.h"
 
 /**
  * ICP optimizer - Abstract Base Class
@@ -76,6 +77,9 @@ public:
         m_timeMeasure = &timeMeasure;
     }
 
+    void setConvergenceMeasure(ConvergenceMeasure& convergenMearsure) {
+        m_convergenceMeasure = &convergenMearsure;
+    }
 
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) = 0;
 
@@ -88,6 +92,7 @@ protected:
     unsigned int matchingMethod;
     unsigned m_nIterations;
     TimeMeasure* m_timeMeasure;
+    ConvergenceMeasure *m_convergenceMeasure;
     float maxDistance; // Sqaure distance
     std::unique_ptr<NearestNeighborSearch> m_nearestNeighborSearch;
 
@@ -238,6 +243,9 @@ public:
             poseIncrement.setZero();
 
             std::cout << "Optimization iteration done." << std::endl;
+
+            // RMSE compute
+            m_convergenceMeasure->recordAlignmentError(estimatedPose);
         }
 
         m_timeMeasure->convergenceTime += double(clock() - start) / CLOCKS_PER_SEC;
@@ -483,6 +491,9 @@ public:
             }
 
             std::cout << "Optimization iteration done." << std::endl;
+
+            // RMSE compute
+            m_convergenceMeasure->recordAlignmentError(estimatedPose);
         }
 
         // Store result
