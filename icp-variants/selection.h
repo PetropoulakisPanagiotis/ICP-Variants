@@ -5,7 +5,7 @@
 #include <iostream>
 #include <random>
 
-enum selection_methods {SELECT_ALL=0, UNIFORM_SAMPLING, RANDOM_SAMPLING, STABLE_SAMPLING};
+enum selection_methods {SELECT_ALL=0, RANDOM_SAMPLING, STABLE_SAMPLING, UNIFORM_SAMPLING};
 typedef std::mt19937 MyRNG;  // the Mersenne Twister with a popular choice of parameters
 
 
@@ -27,7 +27,7 @@ class PointSelection {
             if (m_selectionMode == SELECT_ALL) 
                 return m_source.getPoints();
 
-            if (m_selectionMode == UNIFORM_SAMPLING || m_selectionMode == RANDOM_SAMPLING)
+            if (m_selectionMode == RANDOM_SAMPLING)
                 return m_points;
         }
 
@@ -38,7 +38,7 @@ class PointSelection {
             if (m_selectionMode == SELECT_ALL) 
                 return m_source.getNormals();;
 
-            if (m_selectionMode == UNIFORM_SAMPLING || m_selectionMode == RANDOM_SAMPLING)
+            if (m_selectionMode == RANDOM_SAMPLING)
                 return m_normals;
         }
 
@@ -67,10 +67,8 @@ class PointSelection {
 
         // Init sampler
         void initSampler() {
-            if (m_selectionMode == UNIFORM_SAMPLING || m_selectionMode == RANDOM_SAMPLING) 
+            if (m_selectionMode == RANDOM_SAMPLING) 
                 initializeRandomGenerator();
-            if (m_selectionMode == UNIFORM_SAMPLING) 
-                sampleRandomPoints(m_selectionProba);
         };
 
         // Sample random points and populate m_points and m_normals;
