@@ -170,10 +170,10 @@ public:
           
             step_start = clock();
             // 3. Weighting step // 
-            
+          
             weightingStep.applyWeights(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), 
                                        sourceSelection.getColors(), target.getColors(), matches);
-
+            
             m_timeMeasure->weighingTime += double(clock() - step_start) / CLOCKS_PER_SEC;
             step_start = clock();
             // 4. Rejection step //
