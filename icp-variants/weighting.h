@@ -31,7 +31,7 @@ class WeightingMethod{
 
         }
 
-        float calculateColorsWeight(const Vector3uc& sourceColor, const Vector3uc& targetColor){
+        float calculateColorsWeight(const Vector4uc& sourceColor, const Vector4uc& targetColor){
             return 1.0;
         }
 
@@ -45,7 +45,7 @@ class WeightingMethod{
         // Apply a weighting method to the correspondences //  
         void applyWeights(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, 
                 const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals,
-                const std::vector<Vector3uc>& sourceColors, const std::vector<Vector3uc>& targetColors,
+                const std::vector<Vector4uc>& sourceColors, const std::vector<Vector4uc>& targetColors,
                 std::vector<Match> &matches){
 
             if(method == CONSTANT_WEIGHTING)
@@ -61,22 +61,34 @@ class WeightingMethod{
                 float matchNewWeight = 0.0;
 
                 if(this->method == DISTANCES_WEIGHTING || this->method == HYBRID_WEIGHTING){
-                
-                    float distancesWeight = calculateDistancesWeight(sourcePoints[i], targetPoints[matches[i].idx]);
+                    
+                    if(!sourcePoints[i].allFinite() || !targetPoints[matches[i].idx].allFinite())
+                        matchNewWeight += 0.0;
+                    
+                    else {
+                     
+                        float distancesWeight = calculateDistancesWeight(sourcePoints[i], targetPoints[matches[i].idx]);
 
-                    matchNewWeight += this->hybridWeights.distancesWeight * distancesWeight;
+                        matchNewWeight += this->hybridWeights.distancesWeight * distancesWeight;
+                    }
+
                 }
 
                 if(this->method == NORMALS_WEIGHTING || this->method == HYBRID_WEIGHTING){
+                    
+                    if(!sourceNormals[i].allFinite() || !targetNormals[matches[i].idx].allFinite())
+                        matchNewWeight += 0.0;
                 
-                    float normalsWeight = calculateNormalsWeight(sourceNormals[i], targetNormals[matches[i].idx]);
-
-                    matchNewWeight += this->hybridWeights.normalsWeight * normalsWeight;
+                    else {
+                        float normalsWeight = calculateNormalsWeight(sourceNormals[i], targetNormals[matches[i].idx]);
+                    
+                        matchNewWeight += this->hybridWeights.normalsWeight * normalsWeight;
+                    }
                 }
 
                 if(this->method == COLORS_WEIGHTING || this->method == HYBRID_WEIGHTING){
                     float colorsWeight = calculateColorsWeight(sourceColors[i], targetColors[matches[i].idx]);
-
+                    
                     matchNewWeight += this->hybridWeights.colorsWeight * colorsWeight;
                 }
           
