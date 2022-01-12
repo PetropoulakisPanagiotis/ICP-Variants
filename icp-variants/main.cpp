@@ -20,15 +20,15 @@
 
 #define MATCHING_METHOD     0 // 1 -> projective, 0 -> knn
 #define SELECTION_METHOD    0 // 0 -> all, 1 -> random
-#define WEIGHTING_METHOD    2 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors, 4-> hybrid
+#define WEIGHTING_METHOD    1 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors, 4-> hybrid
 
 #define USE_LINEAR_ICP		0 // Optimization method
 
 #define USE_POINT_TO_PLANE	0 // Objectives - Set only one to true 
 #define USE_SYMMETRIC	    1
 
-#define RUN_SHAPE_ICP		0
-#define RUN_SEQUENCE_ICP	1
+#define RUN_SHAPE_ICP		1
+#define RUN_SEQUENCE_ICP	0
 #define RUN_ETH_ICP			0
 
 int alignBunnyWithICP() {
@@ -108,6 +108,7 @@ int alignBunnyWithICP() {
 
 	// Create a Convergence Measure
 	auto convergenMearsure = ConvergenceMeasure(gtSourcePoints, gtTargetPoints);
+	optimizer->setConvergenceMeasure(convergenMearsure);
 
 	// Create a Time Profiler
 	auto timeMeasure = TimeMeasure();
@@ -125,7 +126,9 @@ int alignBunnyWithICP() {
 	// Calculate time
 	timeMeasure.calculateIterationTime();
 
-	std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
+	// Print out RMSE errors of each iteration
+	convergenMearsure.outputAlignmentError();
+	//std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
 	
 	// Visualize the resulting joined mesh. We add triangulated spheres for point matches.
 	SimpleMesh resultingMesh = SimpleMesh::joinMeshes(bunny_data_loader.getSourceMesh(), bunny_data_loader.getTargetMesh(), estimatedPose);
@@ -191,6 +194,10 @@ int reconstructRoom() {
     if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
 		optimizer->setNbOfIterations(10);
+	}
+    else if (USE_SYMMETRIC) {
+		optimizer->setMetric(2);
+		optimizer->setNbOfIterations(20);
 	}
 	else {
 		optimizer->setMetric(0);

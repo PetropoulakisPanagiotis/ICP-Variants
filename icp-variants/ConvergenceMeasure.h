@@ -11,12 +11,14 @@ private:
     /* data */
     std::vector<Vector3f> m_sourceCorrespondences;
     std::vector<Vector3f> m_targetCorrespondences;
+    std::vector<float> iterationErrors;
     int numCorrspondeces;
 
 public:
     ConvergenceMeasure() {
         numCorrspondeces = 0;
     };
+
     ConvergenceMeasure(const std::vector<Vector3f>& sourceCorrespondences, const std::vector<Vector3f>& targetCorrespondences) 
     {       
         ASSERT(sourceCorrespondences.size() == targetCorrespondences.size() &&  sourceCorrespondences.size() > 0
@@ -25,6 +27,7 @@ public:
         m_targetCorrespondences = targetCorrespondences;
         numCorrspondeces = m_sourceCorrespondences.size();
     };
+
     ~ConvergenceMeasure() {};
 
     /**
@@ -45,4 +48,24 @@ public:
         rmse /= numCorrspondeces;
         return std::sqrt(rmse);
     };
+
+    /* Record Alignment Error*/
+    void recordAlignmentError(const Matrix4f& pose) {
+        float rmse_err = rmseAlignmentError(pose);
+        std::cout << "RMSE Alignment errors: " << rmse_err << "\n";
+        iterationErrors.push_back(rmse_err);
+    }
+
+    /* Print Alignment Errors*/
+    void outputAlignmentError() {
+        if (iterationErrors.size() == 0) {
+            std::cout << "No recorded alignment error.\n";
+            return;
+        }
+        std::cout << "Recorded RMSE Alginment Error!\n";
+        std::cout << "\tIter \t RMSE Error\n";
+        for (int i=0; i< iterationErrors.size(); i++) {
+            printf ("\t%02d \t %01.6f\n", i, iterationErrors[i]);
+        }
+    }
 };
