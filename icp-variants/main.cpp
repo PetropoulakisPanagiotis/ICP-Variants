@@ -109,6 +109,7 @@ int alignBunnyWithICP() {
 
 	// Create a Convergence Measure
 	auto convergenMearsure = ConvergenceMeasure(gtSourcePoints, gtTargetPoints);
+	optimizer->setConvergenceMeasure(convergenMearsure);
 
 	// Create a Time Profiler
 	auto timeMeasure = TimeMeasure();
@@ -128,12 +129,14 @@ int alignBunnyWithICP() {
 
 	std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
 
-
 	input.source.writeToFile("bunny_source.ply");
 	input.target.writeToFile("bunny_target.ply");
 	PointCloud transformed_source = input.source.copy_point_cloud();
 	transformed_source.change_pose(estimatedPose);
 	transformed_source.writeToFile("bunny_final_source.ply");
+  
+	// Print out RMSE errors of each iteration
+	convergenMearsure.outputAlignmentError();
 	
 	// Visualize the resulting joined mesh. We add triangulated spheres for point matches.
 	SimpleMesh resultingMesh = SimpleMesh::joinMeshes(bunny_data_loader.getSourceMesh(), bunny_data_loader.getTargetMesh(), estimatedPose);
@@ -199,6 +202,10 @@ int reconstructRoom() {
     if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
 		optimizer->setNbOfIterations(10);
+	}
+    else if (USE_SYMMETRIC) {
+		optimizer->setMetric(2);
+		optimizer->setNbOfIterations(20);
 	}
 	else {
 		optimizer->setMetric(0);
