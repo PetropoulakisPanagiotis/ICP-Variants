@@ -14,20 +14,20 @@ public:
 		// CSVWriter is not our work!
 		// source: https://thispointer.com/how-to-read-data-from-a-csv-file-in-c/
         // Create an object of CSVWriter
-		CSVReader reader("../../Data/apartment_global.csv");
+		CSVReader reader("../../Data/apartment_local.csv");
 
 		// Get the data from CSV File
 		poseList = reader.getData();
 	}
 
 	int getLength() {
-		return 100;
+		return 3000;
 	}
 
 	Sample getItem(int index) {
 		
-        if (index >= 100) {
-			throw std::runtime_error("index out of range, only 100 samples available");
+        if (index >= 3000) {
+			throw std::runtime_error("index out of range, only 3000 samples available");
 		}
 		Sample data;
 		// Look for the correct row for the pose

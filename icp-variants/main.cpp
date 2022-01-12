@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <limits>
 
 
 #include <pcl/io/pcd_io.h>
@@ -18,7 +19,7 @@
 
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
-#define MATCHING_METHOD     0 // 1 -> projective, 0 -> knn
+#define MATCHING_METHOD     1 // 1 -> projective, 0 -> knn
 #define SELECTION_METHOD    1 // 0 -> all, 1 -> random
 #define WEIGHTING_METHOD    1 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors, 4-> hybrid
 
@@ -126,6 +127,13 @@ int alignBunnyWithICP() {
 	timeMeasure.calculateIterationTime();
 
 	std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
+
+
+	input.source.writeToFile("bunny_source.ply");
+	input.target.writeToFile("bunny_target.ply");
+	PointCloud transformed_source = input.source.copy_point_cloud();
+	transformed_source.change_pose(estimatedPose);
+	transformed_source.writeToFile("bunny_final_source.ply");
 	
 	// Visualize the resulting joined mesh. We add triangulated spheres for point matches.
 	SimpleMesh resultingMesh = SimpleMesh::joinMeshes(bunny_data_loader.getSourceMesh(), bunny_data_loader.getTargetMesh(), estimatedPose);
@@ -281,8 +289,7 @@ int alignETH() {
 		optimizer = new CeresICPOptimizer();
 	}
 
-	// Square distance //
-	optimizer->setMatchingMaxDistance(0.0003f);
+	optimizer->setMatchingMaxDistance(1);
 	if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
 		optimizer->setNbOfIterations(20);
@@ -293,14 +300,14 @@ int alignETH() {
 	}
 
 
-	// 2. Set selection method //
+	// Set selection method //
 	if (SELECTION_METHOD)
-		optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.01);
+		optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.05);
 	else
 		optimizer->setSelectionMethod(SELECT_ALL);
 
 
-	// 3. Set weighting method //
+	// Set weighting method //
 	if (WEIGHTING_METHOD == 1)
 		optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
 	else if (WEIGHTING_METHOD == 2)
@@ -313,38 +320,58 @@ int alignETH() {
 		optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
 
 
-	// load the sample
-	// Load the source and target mesh.
+	// Create the dataloader
 	ETHDataLoader eth_data_loader{};
-	Sample input = eth_data_loader.getItem(0);
-	Matrix4f estimatedPose = Matrix4f::Identity();
+	double min_error = std::numeric_limits<double>::max();
+	int index_min_error = -1;
+	double min_relative_error = 1;
+	int index_min_relative_error = -1;
+	for (int index = 0; index < 300; index++) {
+		// Load the source and target mesh
+		Sample input = eth_data_loader.getItem(index);
+		Matrix4f estimatedPose = Matrix4f::Identity();
+		PointCloud original_source = input.source.copy_point_cloud();
+		// Apply initial transform to source point cloud
+		input.source.change_pose(input.pose);
+		double initial_error = ConvergenceMeasure::calculate_error(original_source.getPclPointCloud(), input.source.getPclPointCloud());
+		// Create a Time Profiler
+		auto timeMeasure = TimeMeasure();
+		optimizer->setTimeMeasure(timeMeasure);
+		// Estimate pose
+		std::cout << "num points source:" << input.source.getPoints().size() << std::endl;
+		std::cout << "num points target:" << input.target.getPoints().size() << std::endl;
+		optimizer->estimatePose(input.source, input.target, estimatedPose);
+		// Calculate time
+		timeMeasure.calculateIterationTime();
+		// std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
+		// std::cout << "true pose:\n" << input.pose << std::endl;
+		// Calculate error
+		input.source.change_pose(estimatedPose);
+		double final_error = ConvergenceMeasure::calculate_error(original_source.getPclPointCloud(), input.source.getPclPointCloud());
+		std::cout << "initial error:" << initial_error << std::endl;
+		std::cout << "final error:" << final_error << std::endl;
 
-	PointCloud original_source = input.source.copy_point_cloud();
-	input.source.change_pose(input.pose);
+		// This code can be used to save the point clouds to disk
+		//original_source.writeToFile("original_source.ply");
+		// input.source.writeToFile("transformed_source.ply");
+		// input.target.writeToFile("target.ply");
+		// input.source.change_pose(estimatedPose);
+		// input.source.writeToFile("final_source.ply");
 
-	double initial_error = ConvergenceMeasure::calculate_error(original_source.getPclPointCloud(), input.source.getPclPointCloud());
-	std::cout << "initial error:" << initial_error << std::endl;
-	std::cout << "Initial transform:\n" << input.pose << std::endl;
+		// Compute best index to find nice examples
+		if (final_error < min_error) {
+			index_min_error = index;
+			min_error = final_error;
+		}
+		if (final_error / initial_error < min_relative_error) {
+			index_min_relative_error = index;
+			min_relative_error = final_error / initial_error;
+		}
+	}
 
-	// Create a Time Profiler
-	auto timeMeasure = TimeMeasure();
-	optimizer->setTimeMeasure(timeMeasure);
+	std::cout << "The minimum error is " << min_error << " for index " << index_min_error << std::endl;
+	std::cout << "The minimum relative error is " << min_relative_error << " for index " << index_min_relative_error << std::endl;
 
-	// Estimate pose
-	std::cout << "num points source:" << input.source.getPoints().size() << std::endl;
-	std::cout << "num points target:" << input.target.getPoints().size() << std::endl;
-	optimizer->estimatePose(input.source, input.target, estimatedPose);
-
-	// Calculate time
-	timeMeasure.calculateIterationTime();
-
-	std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
-	std::cout << "true pose:\n" << input.pose << std::endl;
-
-	input.source.change_pose(estimatedPose);
-	double final_error = ConvergenceMeasure::calculate_error(original_source.getPclPointCloud(), input.source.getPclPointCloud());
-	std::cout << "initial error:" << initial_error << std::endl;
-	std::cout << "final error:" << final_error << std::endl;
 	delete optimizer;
 
 	return 0;

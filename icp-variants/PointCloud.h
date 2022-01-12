@@ -23,6 +23,7 @@ public:
 
         // Compute normals (as an average of triangle normals).
         m_normals = std::vector<Vector3f>(nVertices, Vector3f::Zero());
+        m_colors = std::vector<Vector4uc>(nVertices, Vector4uc::Zero());
         for (size_t i = 0; i < nTriangles; i++) {
             const auto& triangle = triangles[i];
             Vector3f faceNormal = (m_points[triangle.idx1] - m_points[triangle.idx0]).cross(m_points[triangle.idx2] - m_points[triangle.idx0]);
