@@ -81,7 +81,7 @@ public:
         m_convergenceMeasure = &convergenMearsure;
     }
 
-    virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) = 0;
+    virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose, bool calculateRMSE = true) = 0;
 
 protected:
     unsigned int metric;
@@ -124,7 +124,7 @@ class CeresICPOptimizer : public ICPOptimizer {
 public:
     CeresICPOptimizer() {}
 
-    virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) override {
+    virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose, bool calculateRMSE = true) override {
         clock_t step_start, step_end, start, begin, end, tot_time;
 
         start = clock();
@@ -243,7 +243,9 @@ public:
             std::cout << "Optimization iteration done." << std::endl;
 
             // RMSE compute
-            m_convergenceMeasure->recordAlignmentError(estimatedPose);
+            if (calculateRMSE) {
+                m_convergenceMeasure->recordAlignmentError(estimatedPose);
+            }
         }
 
         m_timeMeasure->convergenceTime += double(clock() - start) / CLOCKS_PER_SEC;
@@ -401,7 +403,7 @@ class LinearICPOptimizer : public ICPOptimizer {
 public:
     LinearICPOptimizer() {}
 
-    virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose) override {
+    virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose, bool calculateRMSE = true) override {
         
         clock_t start = clock();
         // 1. Selection step //
@@ -488,7 +490,9 @@ public:
             std::cout << "Optimization iteration done." << std::endl;
 
             // RMSE compute
-            m_convergenceMeasure->recordAlignmentError(estimatedPose);
+            if (calculateRMSE) {
+                m_convergenceMeasure->recordAlignmentError(estimatedPose);
+            }
         }
 
         // Store result
@@ -496,7 +500,7 @@ public:
     }
 
 private:
-    Matrix4f estimatePosePointToPoint(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints) {
+    Matrix4f estimatePosePointToPoint(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, bool calculateRMSE = true) {
         ProcrustesAligner procrustAligner;
         Matrix4f estimatedPose = procrustAligner.estimatePose(sourcePoints, targetPoints);
 
