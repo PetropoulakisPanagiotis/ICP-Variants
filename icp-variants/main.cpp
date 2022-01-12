@@ -18,9 +18,9 @@
 
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
-#define MATCHING_METHOD     1 // 1 -> projective, 0 -> knn
+#define MATCHING_METHOD     0 // 1 -> projective, 0 -> knn
 #define SELECTION_METHOD    0 // 0 -> all, 1 -> random
-#define WEIGHTING_METHOD    2 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors, 4-> hybrid
+#define WEIGHTING_METHOD    1 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors, 4-> hybrid
 
 #define USE_LINEAR_ICP		0 // Optimization method
 
@@ -115,6 +115,8 @@ int alignBunnyWithICP() {
 	optimizer->setTimeMeasure(timeMeasure);
 	
 	// Estimate pose
+	std::cout << "num points source:" << input.source.getPoints().size() << std::endl;
+	std::cout << "num points target:" << input.target.getPoints().size() << std::endl;
 	optimizer->estimatePose(input.source, input.target, estimatedPose);
 	
 	// Calculate convergence measure
@@ -126,6 +128,7 @@ int alignBunnyWithICP() {
 
 	// Print out RMSE errors of each iteration
 	convergenMearsure.outputAlignmentError();
+	//std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
 	
 	// Visualize the resulting joined mesh. We add triangulated spheres for point matches.
 	SimpleMesh resultingMesh = SimpleMesh::joinMeshes(bunny_data_loader.getSourceMesh(), bunny_data_loader.getTargetMesh(), estimatedPose);
@@ -167,7 +170,14 @@ int reconstructRoom() {
 
 	// We store a first frame as a reference frame. All next frames are tracked relatively to the first frame.
 	sensor.processNextFrame();
-	PointCloud target{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), true};
+
+    // For projective search keep the whole target point cloud //
+    // even the invalid points                                 //
+    bool keepOriginalSize = false;
+    if(MATCHING_METHOD)
+        keepOriginalSize = true;
+
+	PointCloud target{ sensor.getDepth(), sensor.getColorRGBX(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), keepOriginalSize};
 
     // Setup the optimizer.
 	ICPOptimizer* optimizer = nullptr;
@@ -184,6 +194,10 @@ int reconstructRoom() {
     if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
 		optimizer->setNbOfIterations(10);
+	}
+    else if (USE_SYMMETRIC) {
+		optimizer->setMetric(2);
+		optimizer->setNbOfIterations(20);
 	}
 	else {
 		optimizer->setMetric(0);
@@ -234,7 +248,7 @@ int reconstructRoom() {
 
 		// Estimate the current camera pose from source to target mesh with ICP optimization.
 		// We downsample the source image to speed up the correspondence matching.
-		PointCloud source{ sensor.getDepth(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), false, 8 };
+		PointCloud source{ sensor.getDepth(), sensor.getColorRGBX(),sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), false, 8 };
         optimizer->estimatePose(source, target, currentCameraToWorld);
 		
 		// Invert the transformation matrix to get the current camera pose.
@@ -266,11 +280,62 @@ int reconstructRoom() {
 }
 
 int alignETH() {
+	
+	// Estimate the pose from source to target mesh with ICP optimization.
+	ICPOptimizer* optimizer = nullptr;
+	if (USE_LINEAR_ICP) {
+		optimizer = new LinearICPOptimizer();
+	}
+	else {
+		optimizer = new CeresICPOptimizer();
+	}
+
+	// Square distance //
+	optimizer->setMatchingMaxDistance(0.0003f);
+	if (USE_POINT_TO_PLANE) {
+		optimizer->setMetric(1);
+		optimizer->setNbOfIterations(20);
+	}
+	else {
+		optimizer->setMetric(0);
+		optimizer->setNbOfIterations(20);
+	}
+
+	// TODO: Test uniform sampling
+	//optimizer->setSelectionMethod(UNIFORM_SAMPLING, 0.5);
+	//optimizer->setSelectionMethod(SELECT_ALL);
+	optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.01); // Resample points each iteration.
+
+	// Weighting step //
+	optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
+
+	// load the sample
 	// Load the source and target mesh.
 	ETHDataLoader eth_data_loader{};
-	Sample s = eth_data_loader.getItem(0);
-	s.source.writeToFile("source.ply");
-	s.target.writeToFile("target.ply");
+	Sample input = eth_data_loader.getItem(0);
+	Matrix4f estimatedPose = Matrix4f::Identity();
+
+	// Create a Time Profiler
+	auto timeMeasure = TimeMeasure();
+	optimizer->setTimeMeasure(timeMeasure);
+
+	// Estimate pose
+	std::cout << "num points source:" << input.source.getPoints().size() << std::endl;
+	std::cout << "num points target:" << input.target.getPoints().size() << std::endl;
+	optimizer->estimatePose(input.source, input.target, estimatedPose);
+
+	// Calculate time
+	timeMeasure.calculateIterationTime();
+
+	std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
+	std::cout << "true pose:\n" << input.pose << std::endl;
+
+	input.source.writeToFile("source.ply");
+	input.target.writeToFile("target_old_pose.ply");
+	input.target.change_pose(estimatedPose);
+	input.target.writeToFile("target_new_pose.ply");
+	delete optimizer;
+
 	return 0;
 }
 

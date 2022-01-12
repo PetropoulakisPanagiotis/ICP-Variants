@@ -72,7 +72,7 @@ public:
         }
     }
 
-    PointCloud(float* depthMap, const Matrix3f& depthIntrinsics, const Matrix4f& depthExtrinsics, const unsigned width, const unsigned height, bool keepOriginalSize = false, unsigned downsampleFactor = 1, float maxDistance = 0.1f) {
+    PointCloud(float* depthMap, BYTE* colorFrame, const Matrix3f& depthIntrinsics, const Matrix4f& depthExtrinsics, const unsigned width, const unsigned height, bool keepOriginalSize = false, unsigned downsampleFactor = 1, float maxDistance = 0.1f) {
         // Get depth intrinsics.
         float fovX = depthIntrinsics(0, 0);
         float fovY = depthIntrinsics(1, 1);
@@ -150,8 +150,15 @@ public:
             if (keepOriginalSize || (point.allFinite() && normal.allFinite())) {
                 m_points.push_back(point);
                 m_normals.push_back(normal);
+
+                // Fix current color //
+                Vector4uc currColor(colorFrame[i], colorFrame[i + 1], 
+                                    colorFrame[i + 2], colorFrame[i + 3]);
+
+                // Parse color //
+                m_colors.push_back(currColor);
             }
-        }
+        } // End for parse points, normals, colors 
     }
 
     bool readFromFile(const std::string& filename) {
@@ -236,6 +243,13 @@ public:
         return true;
     }
 
+    void change_pose(const Matrix4f& pose) {
+        for (int i = 0; i < m_points.size(); i++) {
+            m_points[i] = (pose * Vector4f(m_points[i][0], m_points[i][1], m_points[i][2], 1.f)).head(3);
+            m_normals[i] = (pose * Vector4f(m_normals[i][0], m_normals[i][1], m_normals[i][2], 0.f)).head(3);
+        }
+    }
+
     std::vector<Vector3f>& getPoints() {
         return m_points;
     }
@@ -252,11 +266,11 @@ public:
         return m_normals;
     }
     
-    std::vector<Vector3uc>& getColors() {
+    std::vector<Vector4uc>& getColors() {
         return m_colors;
     }
 
-    const std::vector<Vector3uc>& getColors() const {
+    const std::vector<Vector4uc>& getColors() const {
         return m_colors;
     }
 
@@ -278,5 +292,5 @@ public:
 private:
     std::vector<Vector3f> m_points;
     std::vector<Vector3f> m_normals;
-    std::vector<Vector3uc> m_colors;
+    std::vector<Vector4uc> m_colors;
 };

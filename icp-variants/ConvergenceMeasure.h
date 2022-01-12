@@ -18,6 +18,7 @@ public:
     ConvergenceMeasure() {
         numCorrspondeces = 0;
     };
+
     ConvergenceMeasure(const std::vector<Vector3f>& sourceCorrespondences, const std::vector<Vector3f>& targetCorrespondences) 
     {       
         ASSERT(sourceCorrespondences.size() == targetCorrespondences.size() &&  sourceCorrespondences.size() > 0
@@ -26,6 +27,7 @@ public:
         m_targetCorrespondences = targetCorrespondences;
         numCorrspondeces = m_sourceCorrespondences.size();
     };
+
     ~ConvergenceMeasure() {};
 
     /**
