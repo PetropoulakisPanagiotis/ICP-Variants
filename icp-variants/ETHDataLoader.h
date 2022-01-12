@@ -32,6 +32,7 @@ public:
 		Sample data;
 		// Look for the correct row for the pose
 		std::vector<std::string> vec = poseList[index + 1];
+		std::cout << "Current index:" << index << std::endl;
 		std::cout << "Current id:" << vec[0] << std::endl;
 		std::cout << "Current source:" << vec[1] << std::endl;
 		std::cout << "Current target:" << vec[2] << std::endl;
@@ -41,7 +42,7 @@ public:
 			std::stof(vec[12]), std::stof(vec[13]), std::stof(vec[14]), std::stof(vec[15]),
 			0, 0, 0, 1;
 
-		// Load the correct source source cloud
+		// Load the correct source cloud
 		std::cout << "Starting data loader for source point cloud" << std::endl;
 		const std::string filenameSource = std::string("../../Data/apartment/" + vec[1]);
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source(new pcl::PointCloud<pcl::PointXYZ>);
