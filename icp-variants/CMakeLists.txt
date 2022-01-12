@@ -20,6 +20,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES Darwin)
     set(glog_DIR ${LIBRARY_DIR}/Glog/lib/cmake/glog CACHE PATH "Path to installed glog")
     set(Ceres_DIR ${LIBRARY_DIR}/Ceres/lib/cmake/Ceres CACHE PATH "Path to installed Ceres")
     set(FreeImage_DIR ${LIBRARY_DIR}/FreeImage CACHE PATH "Path to config Free Image")
+    set(Qt5_DIR /usr/local/opt/qt5/lib/cmake/Qt5 CACHE PATH "Path to Qt5 source folder" FORCE) # Have to FORCE
     include_directories(/usr/local/include)
     link_directories(/usr/local/lib)
 else()
