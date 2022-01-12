@@ -326,7 +326,7 @@ int alignETH() {
 	int index_min_error = -1;
 	double min_relative_error = 1;
 	int index_min_relative_error = -1;
-	for (int index = 0; index < 300; index++) {
+	for (int index = 0; index < 100; index++) {
 		// Load the source and target mesh
 		Sample input = eth_data_loader.getItem(index);
 		Matrix4f estimatedPose = Matrix4f::Identity();
