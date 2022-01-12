@@ -1,6 +1,10 @@
 #pragma once
 #include <vector>
 #include <math.h>
+#include <assert.h>
+#include <pcl/common/centroid.h>
+#include <pcl/common/distances.h>
+#include <pcl/point_cloud.h>
 #include "PointCloud.h"
 #include "Eigen.h"
 #include "utils.h"
@@ -44,5 +48,20 @@ public:
         }
         rmse /= numCorrspondeces;
         return std::sqrt(rmse);
+    };
+
+    static double calculate_error(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud1, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud2) {
+        assert(cloud1->size() == cloud2->size());
+        double error = 0;
+        Eigen::Vector4d centroid_v;
+        pcl::compute3DCentroid(*cloud1, centroid_v);
+        pcl::PointXYZ centroid(centroid_v[0], centroid_v[1], centroid_v[2]);
+        for (int i = 0; i < cloud1->size(); i++) {
+            double centroid_distance = pcl::euclideanDistance(cloud1->at(i), centroid);
+
+            error += pcl::euclideanDistance(cloud1->at(i), cloud2->at(i)) / centroid_distance;
+        }
+        error /= cloud1->size();
+        return error;
     };
 };

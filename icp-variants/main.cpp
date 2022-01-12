@@ -19,17 +19,17 @@
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
 #define MATCHING_METHOD     0 // 1 -> projective, 0 -> knn
-#define SELECTION_METHOD    0 // 0 -> all, 1 -> random
-#define WEIGHTING_METHOD    2 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors, 4-> hybrid
+#define SELECTION_METHOD    1 // 0 -> all, 1 -> random
+#define WEIGHTING_METHOD    1 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors, 4-> hybrid
 
 #define USE_LINEAR_ICP		0 // Optimization method
 
-#define USE_POINT_TO_PLANE	0 // Objectives - Set only one to true 
-#define USE_SYMMETRIC	    1
+#define USE_POINT_TO_PLANE	1 // Objectives - Set only one to true 
+#define USE_SYMMETRIC	    0
 
 #define RUN_SHAPE_ICP		0
-#define RUN_SEQUENCE_ICP	1
-#define RUN_ETH_ICP			0
+#define RUN_SEQUENCE_ICP	0
+#define RUN_ETH_ICP			1
 
 int alignBunnyWithICP() {
 	// Load the source and target mesh.
@@ -273,8 +273,6 @@ int reconstructRoom() {
 }
 
 int alignETH() {
-	
-	// Estimate the pose from source to target mesh with ICP optimization.
 	ICPOptimizer* optimizer = nullptr;
 	if (USE_LINEAR_ICP) {
 		optimizer = new LinearICPOptimizer();
@@ -294,19 +292,39 @@ int alignETH() {
 		optimizer->setNbOfIterations(20);
 	}
 
-	// TODO: Test uniform sampling
-	//optimizer->setSelectionMethod(UNIFORM_SAMPLING, 0.5);
-	//optimizer->setSelectionMethod(SELECT_ALL);
-	optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.01); // Resample points each iteration.
 
-	// Weighting step //
-	optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
+	// 2. Set selection method //
+	if (SELECTION_METHOD)
+		optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.01);
+	else
+		optimizer->setSelectionMethod(SELECT_ALL);
+
+
+	// 3. Set weighting method //
+	if (WEIGHTING_METHOD == 1)
+		optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
+	else if (WEIGHTING_METHOD == 2)
+		optimizer->setWeightingMethod(NORMALS_WEIGHTING);
+	else if (WEIGHTING_METHOD == 3)
+		optimizer->setWeightingMethod(COLORS_WEIGHTING);
+	else if (WEIGHTING_METHOD == 4)
+		optimizer->setWeightingMethod(HYBRID_WEIGHTING);
+	else
+		optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
+
 
 	// load the sample
 	// Load the source and target mesh.
 	ETHDataLoader eth_data_loader{};
 	Sample input = eth_data_loader.getItem(0);
 	Matrix4f estimatedPose = Matrix4f::Identity();
+
+	PointCloud original_source = input.source.copy_point_cloud();
+	input.source.change_pose(input.pose);
+
+	double initial_error = ConvergenceMeasure::calculate_error(original_source.getPclPointCloud(), input.source.getPclPointCloud());
+	std::cout << "initial error:" << initial_error << std::endl;
+	std::cout << "Initial transform:\n" << input.pose << std::endl;
 
 	// Create a Time Profiler
 	auto timeMeasure = TimeMeasure();
@@ -323,10 +341,10 @@ int alignETH() {
 	std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
 	std::cout << "true pose:\n" << input.pose << std::endl;
 
-	input.source.writeToFile("source.ply");
-	input.target.writeToFile("target_old_pose.ply");
-	input.target.change_pose(estimatedPose);
-	input.target.writeToFile("target_new_pose.ply");
+	input.source.change_pose(estimatedPose);
+	double final_error = ConvergenceMeasure::calculate_error(original_source.getPclPointCloud(), input.source.getPclPointCloud());
+	std::cout << "initial error:" << initial_error << std::endl;
+	std::cout << "final error:" << final_error << std::endl;
 	delete optimizer;
 
 	return 0;
