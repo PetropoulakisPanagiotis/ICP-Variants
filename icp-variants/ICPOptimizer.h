@@ -25,7 +25,7 @@ class ICPOptimizer {
 public:
     ICPOptimizer() :
         metric{ 0 }, selectionMethod{0}, rejectionMethod{1}, weightingMethod{0},
-        m_nIterations{ 20 }, matchingMethod{0}, maxDistance{0.0003f}{ 
+        m_nIterations{ 20 }, matchingMethod{0}, maxDistance{0.0003f}, colorICP{false}{ 
    
         if(matchingMethod == 0) 
             m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchFlann>();
@@ -40,6 +40,10 @@ public:
 
     void setMetric(unsigned int metric) {
         this->metric = metric;
+    }
+
+    void enableColorICP(bool colorICP){
+        this->colorICP = colorICP;
     }
 
     void setSelectionMethod(unsigned int selectionMethod, double proba=1.0) {
@@ -85,6 +89,7 @@ public:
 
 protected:
     unsigned int metric;
+    bool colorICP;
     unsigned int selectionMethod;
     double proba;
     unsigned int rejectionMethod;
@@ -142,7 +147,10 @@ public:
         // Initialize matching step // 
 
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
-        m_nearestNeighborSearch->buildIndex(target.getPoints());
+        if(this->colorICP)
+            m_nearestNeighborSearch->buildIndex(target.getPoints(), target.getColors());
+        else
+            m_nearestNeighborSearch->buildIndex(target.getPoints());
 
         // The initial estimate can be given as an argument.
         Matrix4f estimatedPose = initialPose;
@@ -170,7 +178,12 @@ public:
 
             step_start = clock();
             //2. Matching step //
-            auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
+            std::vector<Match> matches; 
+            if(this->colorICP)
+                matches = m_nearestNeighborSearch->queryMatches(transformedPoints, sourceSelection.getColors());
+            else
+                matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
+            
             m_timeMeasure->matchingTime += double(clock() - step_start) / CLOCKS_PER_SEC;
           
             step_start = clock();
@@ -408,7 +421,10 @@ public:
         // Change PointCloud source to PointSelection source
         
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
-        m_nearestNeighborSearch->buildIndex(target.getPoints());
+        if(this->colorICP)
+            m_nearestNeighborSearch->buildIndex(target.getPoints(), target.getColors());
+        else
+            m_nearestNeighborSearch->buildIndex(target.getPoints());
 
         // The initial estimate can be given as an argument.
         Matrix4f estimatedPose = initialPose;
@@ -429,7 +445,12 @@ public:
 
             start = clock();
             //2. Matching step //
-            auto matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
+            std::vector<Match> matches; 
+            if(this->colorICP)
+                matches = m_nearestNeighborSearch->queryMatches(transformedPoints, sourceSelection.getColors());
+            else
+                matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
+            
             m_timeMeasure->matchingTime += double(clock() - start) / CLOCKS_PER_SEC;
 
             start = clock();
