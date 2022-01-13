@@ -21,12 +21,14 @@
 
 #define MATCHING_METHOD     0 // 1 -> projective, 0 -> knn. Run projective with sequence_icp 
 #define SELECTION_METHOD    1 // 0 -> all, 1 -> random
-#define WEIGHTING_METHOD    1 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
+#define WEIGHTING_METHOD    3 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
 
 #define USE_LINEAR_ICP		0 // 0 -> non-linear optimization. 1 -> linear
 
-#define USE_POINT_TO_PLANE	0 // Objectives - Set only one to true 
-#define USE_SYMMETRIC	    1
+// Set metric - Enable only one //
+#define USE_POINT_TO_PLANE	1  
+#define USE_POINT_TO_POINT	0 
+#define USE_SYMMETRIC	    0
 
 #define RUN_SHAPE_ICP		0 // 0 -> disable. 1 -> enable. Can all be set to 1.
 #define RUN_SEQUENCE_ICP	1
@@ -56,7 +58,7 @@ int alignBunnyWithICP() {
 		optimizer->setMetric(2);
 		optimizer->setNbOfIterations(20);
 	}
-	else {
+	else if(USE_POINT_TO_POINT){
 		optimizer->setMetric(0);
 		optimizer->setNbOfIterations(20);
 	}
@@ -73,14 +75,22 @@ int alignBunnyWithICP() {
 	    optimizer->setSelectionMethod(SELECT_ALL);
 
     // 3. Set weighting method //
-    if(WEIGHTING_METHOD == 1)
+    if(WEIGHTING_METHOD == 1){
         optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
-    else if(WEIGHTING_METHOD == 2)
+        std::cout << "Weight step: distances\n";
+    }
+    else if(WEIGHTING_METHOD == 2){
         optimizer->setWeightingMethod(NORMALS_WEIGHTING);
-    else if(WEIGHTING_METHOD == 3)
+        std::cout << "Weight step: normals\n";
+    }
+    else if(WEIGHTING_METHOD == 3){
         optimizer->setWeightingMethod(COLORS_WEIGHTING);
-    else
+        std::cout << "Weight step: colors\n";
+    }
+    else{
         optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
+        std::cout << "Weight step: constant\n";
+    }
 
 	// load the sample
 	Sample input = bunny_data_loader.getItem(0);
@@ -204,7 +214,7 @@ int reconstructRoom() {
 		optimizer->setMetric(2);
 		optimizer->setNbOfIterations(20);
 	}
-	else {
+	else if(USE_POINT_TO_POINT){
 		optimizer->setMetric(0);
 		optimizer->setNbOfIterations(20);
 	}
@@ -224,14 +234,22 @@ int reconstructRoom() {
 	    optimizer->setSelectionMethod(SELECT_ALL);
 
     // 3. Set weighting method //
-    if(WEIGHTING_METHOD == 1)
+    if(WEIGHTING_METHOD == 1){
         optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
-    else if(WEIGHTING_METHOD == 2)
+        std::cout << "Weight step: distances\n";
+    }
+    else if(WEIGHTING_METHOD == 2){
         optimizer->setWeightingMethod(NORMALS_WEIGHTING);
-    else if(WEIGHTING_METHOD == 3)
+        std::cout << "Weight step: normals\n";
+    }
+    else if(WEIGHTING_METHOD == 3){
         optimizer->setWeightingMethod(COLORS_WEIGHTING);
-    else
+        std::cout << "Weight step: colors\n";
+    }
+    else{
         optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
+        std::cout << "Weight step: constant\n";
+    }
 
     // Create a Time Profiler
 	auto timeMeasure = TimeMeasure();
@@ -306,7 +324,7 @@ int alignETH() {
 		optimizer->setMetric(2);
 		optimizer->setNbOfIterations(20);
 	}
-	else {
+	else if (USE_POINT_TO_POINT){
 		optimizer->setMetric(0);
 		optimizer->setNbOfIterations(20);
 	}
@@ -318,14 +336,22 @@ int alignETH() {
 		optimizer->setSelectionMethod(SELECT_ALL);
 
 	// 3. Set weighting method //
-	if (WEIGHTING_METHOD == 1)
-		optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
-	else if (WEIGHTING_METHOD == 2)
-		optimizer->setWeightingMethod(NORMALS_WEIGHTING);
-	else if (WEIGHTING_METHOD == 3)
-		optimizer->setWeightingMethod(COLORS_WEIGHTING);
-	else
-		optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
+    if(WEIGHTING_METHOD == 1){
+        optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
+        std::cout << "Weight step: distances\n";
+    }
+    else if(WEIGHTING_METHOD == 2){
+        optimizer->setWeightingMethod(NORMALS_WEIGHTING);
+        std::cout << "Weight step: normals\n";
+    }
+    else if(WEIGHTING_METHOD == 3){
+        optimizer->setWeightingMethod(COLORS_WEIGHTING);
+        std::cout << "Weight step: colors\n";
+    }
+    else{
+        optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
+        std::cout << "Weight step: constant\n";
+    }
 
 	// Create the dataloader
 	ETHDataLoader eth_data_loader{};

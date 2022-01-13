@@ -146,8 +146,6 @@ public:
         m_points.reserve(std::floor(float(nPoints) / downsampleFactor));
         m_normals.reserve(std::floor(float(nPoints) / downsampleFactor));
 
-        int x = 0;
-        int y = 0;
         for (int i = 0; i < nPoints; i = i + downsampleFactor) {
             const auto& point = pointsTmp[i];
             const auto& normal = normalsTmp[i];
