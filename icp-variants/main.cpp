@@ -21,16 +21,16 @@
 
 #define MATCHING_METHOD     0 // 1 -> projective, 0 -> knn. Run projective with sequence_icp 
 #define SELECTION_METHOD    1 // 0 -> all, 1 -> random
-#define WEIGHTING_METHOD    1 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors, 4-> hybrid
+#define WEIGHTING_METHOD    1 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
 
 #define USE_LINEAR_ICP		0 // 0 -> non-linear optimization. 1 -> linear
 
-#define USE_POINT_TO_PLANE	1 // Objectives - Set only one to true 
-#define USE_SYMMETRIC	    0
+#define USE_POINT_TO_PLANE	0 // Objectives - Set only one to true 
+#define USE_SYMMETRIC	    1
 
 #define RUN_SHAPE_ICP		0 // 0 -> disable. 1 -> enable. Can all be set to 1.
-#define RUN_SEQUENCE_ICP	0
-#define RUN_ETH_ICP			1
+#define RUN_SEQUENCE_ICP	1
+#define RUN_ETH_ICP		    0
 
 int alignBunnyWithICP() {
 	// Load the source and target mesh.
@@ -79,8 +79,6 @@ int alignBunnyWithICP() {
         optimizer->setWeightingMethod(NORMALS_WEIGHTING);
     else if(WEIGHTING_METHOD == 3)
         optimizer->setWeightingMethod(COLORS_WEIGHTING);
-    else if(WEIGHTING_METHOD == 4)
-        optimizer->setWeightingMethod(HYBRID_WEIGHTING);
     else
         optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
 
@@ -232,8 +230,6 @@ int reconstructRoom() {
         optimizer->setWeightingMethod(NORMALS_WEIGHTING);
     else if(WEIGHTING_METHOD == 3)
         optimizer->setWeightingMethod(COLORS_WEIGHTING);
-    else if(WEIGHTING_METHOD == 4)
-        optimizer->setWeightingMethod(HYBRID_WEIGHTING);
     else
         optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
 
@@ -249,16 +245,18 @@ int reconstructRoom() {
 	int i = 0;
 	const int iMax = 50; //50
 	while (sensor.processNextFrame() && i <= iMax) {
-		float* depthMap = sensor.getDepth();
+        float* depthMap = sensor.getDepth();
 		Matrix3f depthIntrinsics = sensor.getDepthIntrinsics();
 		Matrix4f depthExtrinsics = sensor.getDepthExtrinsics();
 
 		// Estimate the current camera pose from source to target mesh with ICP optimization.
 		// We downsample the source image to speed up the correspondence matching.
 		PointCloud source{ sensor.getDepth(), sensor.getColorRGBX(),sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), false, 8 };
-        optimizer->estimatePose(source, target, currentCameraToWorld);
+        
+        // Apply ICP //        
+        optimizer->estimatePose(source, target, currentCameraToWorld, false);
 		
-		// Invert the transformation matrix to get the current camera pose.
+        // Invert the transformation matrix to get the current camera pose.
 		Matrix4f currentCameraPose = currentCameraToWorld.inverse();
 		std::cout << "Current camera pose: " << std::endl << currentCameraPose << std::endl;
 		estimatedPoses.push_back(currentCameraPose);
@@ -326,8 +324,6 @@ int alignETH() {
 		optimizer->setWeightingMethod(NORMALS_WEIGHTING);
 	else if (WEIGHTING_METHOD == 3)
 		optimizer->setWeightingMethod(COLORS_WEIGHTING);
-	else if (WEIGHTING_METHOD == 4)
-		optimizer->setWeightingMethod(HYBRID_WEIGHTING);
 	else
 		optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
 
