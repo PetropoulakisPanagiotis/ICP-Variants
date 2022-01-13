@@ -24,9 +24,6 @@ public:
 	virtual void buildIndex(const std::vector<Eigen::Vector3f>& targetPoints) = 0;
 	virtual std::vector<Match> queryMatches(const std::vector<Vector3f>& transformedPoints) = 0;
 	
-    virtual void buildIndex(const std::vector<Eigen::Vector3f>& targetPoints, const std::vector<Vector4uc>& targetColors) = 0;
-	virtual std::vector<Match> queryMatches(const std::vector<Vector3f>& transformedPoints, const std::vector<Vector4uc>& transformedColors) = 0;
-	
     virtual void setCameraParams(const Eigen::Matrix3f& depthIntrinsics, const unsigned width, const unsigned height) = 0;
 
 protected:
@@ -62,15 +59,6 @@ public:
 		return matches;
 	}
  
-
-    virtual void buildIndex(const std::vector<Eigen::Vector3f>& targetPoints, const std::vector<Vector4uc>& targetColors){
-        return;
-    }
-
-	virtual std::vector<Match> queryMatches(const std::vector<Vector3f>& transformedPoints, const std::vector<Vector4uc>& transformedColors){
-        return {};
-    }
-	
     void setCameraParams(const Eigen::Matrix3f& depthIntrinsics, const unsigned width, const unsigned height){
         return;
     }
@@ -208,105 +196,6 @@ public:
 		return matches;
 	}
 
-    virtual void buildIndex(const std::vector<Eigen::Vector3f>& targetPoints, const std::vector<Vector4uc>& targetColors){
-        std::cout << "Initializing FLANN-Color index with " << targetPoints.size() << " points." << std::endl;
-
-		// FLANN requires that all the points be flat. Therefore we copy the points to a separate flat array.
-		m_flatPoints = new float[targetPoints.size() * 6];
-		for (size_t pointIndex = 0; pointIndex < targetPoints.size(); pointIndex++) {
-			for (size_t dim = 0; dim < 3; dim++) {
-				m_flatPoints[pointIndex * 6 + dim] = targetPoints[pointIndex][dim];
-			}
-
-            // Parse colors //
-            for (size_t dim = 3; dim < 6; dim++) {
-				m_flatPoints[pointIndex * 6 + dim] = targetColors[pointIndex][dim - 3];
-			}
-		}
-
-		flann::Matrix<float> dataset(m_flatPoints, targetPoints.size(), 6);
-
-		// Building the index takes some time.
-		m_index = new flann::Index<flann::L2<float>>(dataset, flann::KDTreeIndexParams(m_nTrees));
-		m_index->buildIndex();
-
-		std::cout << "FLANN-Color index created." << std::endl;
-        this->type = 1;
-    }
-
-	virtual std::vector<Match> queryMatches(const std::vector<Vector3f>& transformedPoints, const std::vector<Vector4uc>& transformedColors){
-        if (!m_index) {
-			std::cout << "FLANNi-Color index needs to be build before querying any matches." << std::endl;
-			return {};
-		}
-        
-        if (this->type ==  0) {
-			std::cout << "Please call queryMatches without colors." << std::endl;
-			return {};
-		}
-
-		// FLANN requires that all the points be flat. Therefore we copy the points to a separate flat array.
-		float* queryPoints = new float[transformedPoints.size() * 6];
-		for (size_t pointIndex = 0; pointIndex < transformedPoints.size(); pointIndex++) {
-			for (size_t dim = 0; dim < 3; dim++) {
-				queryPoints[pointIndex * 6 + dim] = transformedPoints[pointIndex][dim];
-			}
-
-            // Parse colors //
-            for (size_t dim = 3; dim < 6; dim++) {
-				m_flatPoints[pointIndex * 6 + dim] = transformedColors[pointIndex][dim - 3];
-			}
-		}
-
-		flann::Matrix<float> query(queryPoints, transformedPoints.size(), 6);
-		flann::Matrix<int> indices(new int[query.rows * 1], query.rows, 1);
-		flann::Matrix<float> distances(new float[query.rows * 1], query.rows, 1);
-
-        //for (size_t i = 0; i < transformedPoints.size(); i++)
-        //{
-        //    std::cout << "Query: " << *query[i] << std::endl;
-        //}
-		
-		// Do a knn search, searching for 1 nearest point and using 16 checks.
-		flann::SearchParams searchParams{ 16 };
-		searchParams.cores = 0;
-		m_index->knnSearch(query, indices, distances, 1, searchParams);
-
-		// Filter the matches.
-		const unsigned nMatches = transformedPoints.size();
-		std::vector<Match> matches;
-		matches.reserve(nMatches);
-
-        std::cout << m_maxDistance << std::endl;
-		for (int i = 0; i < nMatches; ++i) {
-			if (*distances[i] <= m_maxDistance)        
-				matches.push_back(Match{ *indices[i], 1.f });
-			else
-				matches.push_back(Match{ -1, 0.f });
-		}
-
-        //for (int i = 0; i < nMatches; i++)
-        //{
-        //    std::cout << "Query: " << *query[i] << std::endl;
-        //    std::cout << "Indices: " << *indices[i] << std::endl;
-        //    std::cout << "Distances: " << *distances[i] << std::endl;
-        //    std::cout << "Matches: " << matches[i].idx << std::endl;
-        //}
-
-		// Release the memory.
-		delete[] query.ptr();
-		delete[] indices.ptr();
-		delete[] distances.ptr();
-
-        //for (int i = 0; i < nMatches; i++)
-        //{
-        //    std::cout << "Matches: " << matches[i].idx << std::endl;
-        //}
-
-		return matches;
-
-    }
-
     void setCameraParams(const Eigen::Matrix3f& depthIntrinsics, const unsigned width, const unsigned height){
         return;
     }
@@ -424,15 +313,7 @@ public:
 
         return matches;
 	}
-
-    virtual void buildIndex(const std::vector<Eigen::Vector3f>& targetPoints, const std::vector<Vector4uc>& targetColors){
-        return;
-    }
-
-	virtual std::vector<Match> queryMatches(const std::vector<Vector3f>& transformedPoints, const std::vector<Vector4uc>& transformedColors){
-        return {};
-    }
-
+    
     // Parse camera parameters - required for querying points //
     void setCameraParams(const Eigen::Matrix3f& depthIntrinsics, const unsigned width, const unsigned height){
         this->depthIntrinsics = depthIntrinsics;

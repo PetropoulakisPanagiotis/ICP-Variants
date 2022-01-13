@@ -16,7 +16,7 @@ class WeightingMethod{
         float calculateDistancesWeight(const Vector3f& sourcePoint, const Vector3f& targetPoint){
             Vector3f diff = sourcePoint - targetPoint;
 
-            return 1 - ((diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2]) / this->maxDistance);
+            return 1.0 - ((diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2]) / this->maxDistance);
         }
 
         float calculateNormalsWeight(const Vector3f& sourceNormal, const Vector3f& targetNormal){
@@ -27,8 +27,7 @@ class WeightingMethod{
 
         float calculateColorsWeight(const Vector4uc& sourceColor, const Vector4uc& targetColor){
             Vector4uc diff = sourceColor - targetColor;
-            
-            return 1 - ((diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2] + diff[3] * diff[3]) / MAX_COLOR_DIFFERENCE);
+            return 1.0 - (float(diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2]) / float(MAX_COLOR_DIFFERENCE));
         }
 
     public:
