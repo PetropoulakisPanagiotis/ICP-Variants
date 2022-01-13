@@ -26,16 +26,16 @@
 #define USE_LINEAR_ICP		0 // 0 -> non-linear optimization. 1 -> linear
 
 // Set metric - Enable only one //
-#define USE_POINT_TO_PLANE	1  
+#define USE_POINT_TO_PLANE	0  
 #define USE_POINT_TO_POINT	0 
-#define USE_SYMMETRIC	    0
+#define USE_SYMMETRIC	    1
 
 // Add color to knn             //
 // Works with all error metrics // 
-#define USE_COLOR_ICP       1 // Enable sequence icp, else it is not used
+#define USE_COLOR_ICP       0 // Enable sequence icp, else it is not used
 
-#define RUN_SHAPE_ICP		0 // 0 -> disable. 1 -> enable. Can all be set to 1.
-#define RUN_SEQUENCE_ICP	1
+#define RUN_SHAPE_ICP		1 // 0 -> disable. 1 -> enable. Can all be set to 1.
+#define RUN_SEQUENCE_ICP    0
 #define RUN_ETH_ICP		    0
 
 int alignBunnyWithICP() {
@@ -167,8 +167,12 @@ int alignBunnyWithICP() {
 			resultingMesh = SimpleMesh::joinMeshes(SimpleMesh::sphere(targetPoint, 0.003f, Vector4uc(255, 0, 255, 0)), resultingMesh, Matrix4f::Identity());
 		}
 	}
+
 	resultingMesh.writeMesh(std::string("bunny_icp.off"));
 	std::cout << "Resulting mesh written." << std::endl;
+
+    // saving iteration errors to file //
+    convergenMearsure.writeToFile("RMSE.txt");
 
 	delete optimizer;
 
