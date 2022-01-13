@@ -175,7 +175,6 @@ public:
           
             step_start = clock();
             // 3. Weighting step // 
-          
             weightingStep.applyWeights(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), 
                                        sourceSelection.getColors(), target.getColors(), matches);
             
