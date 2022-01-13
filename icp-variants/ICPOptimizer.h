@@ -303,8 +303,6 @@ private:
                 if (!sourcePoint.allFinite() || !targetPoint.allFinite())
                     continue;
 
-                // TODO: Create a new point-to-point cost function and add it as constraint (i.e. residual block) 
-                // to the Ceres problem.
                 problem.AddResidualBlock(
                     new ceres::AutoDiffCostFunction<PointToPointConstraint, 3, 6>(
                         new PointToPointConstraint(sourcePoint, targetPoint, match.weight)
@@ -317,8 +315,6 @@ private:
                 if (!targetNormal.allFinite())
                     continue;
 
-                // TODO: Create a new point-to-plane cost function and add it as constraint (i.e. residual block) 
-                // to the Ceres problem.
                 problem.AddResidualBlock(
                     new ceres::AutoDiffCostFunction<PointToPlaneConstraint, 1, 6>(
                         new PointToPlaneConstraint(sourcePoint, targetPoint, targetNormal, match.weight)
@@ -341,9 +337,6 @@ private:
 
                 if (!sourcePoint.allFinite() || !targetPoint.allFinite())
                     continue;
-
-                // TODO: Create a new point-to-point cost function and add it as constraint (i.e. residual block) 
-                // to the Ceres problem.
 
                 const auto& targetNormal = targetNormals[match.idx];
 
@@ -519,8 +512,6 @@ private:
             const auto& d = targetPoints[i];
             const auto& n = targetNormals[i];
 
-            // TODO: Add the point-to-plane constraints to the system
-
             /* Use advance initialization to fill rows        */ 
             /* Use temporary eigen row vector                 */
             RowVectorXf planeConstraintRow(6);
@@ -540,7 +531,6 @@ private:
                      -
                      (n[0]*s[0] + n[1]*s[1] + n[2]*s[2]);
 
-            // TODO: Add the point-to-point constraints to the system
             /*  Ms = d -> find unkowns and free vars like in */
             /*  in the paper expansion                       */
             /*  So, add three rows. 1 per coordianate        */
@@ -564,7 +554,6 @@ private:
             A.row(4*i + 3) = pointConstraintRow;
             b(4*i + 3) = d[2] - s[2];
             
-            //TODO: Optionally, apply a higher weight to point-to-plane correspondences
             float LAMBDA_POINT = 1.0f;
             float LAMBDA_PLANE = 1.0f;
             
@@ -581,7 +570,6 @@ private:
             b(4*i + 3) *= LAMBDA_POINT;
         }
 
-        // TODO: Solve the system
         VectorXf x(6);
      
         char linearSolver = 1;
@@ -606,7 +594,6 @@ private:
 
         Vector3f translation = x.tail(3);
 
-        // TODO: Build the pose matrix using the rotation and translation matrices
         Matrix4f estimatedPose = Matrix4f::Identity();
         estimatedPose.block(0, 0, 3, 3) = rotation;
         estimatedPose.block(0, 3, 3, 1) = translation;

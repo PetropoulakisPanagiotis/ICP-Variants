@@ -19,16 +19,16 @@
 
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
-#define MATCHING_METHOD     1 // 1 -> projective, 0 -> knn
+#define MATCHING_METHOD     0 // 1 -> projective, 0 -> knn. Run projective with sequence_icp 
 #define SELECTION_METHOD    1 // 0 -> all, 1 -> random
 #define WEIGHTING_METHOD    1 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors, 4-> hybrid
 
-#define USE_LINEAR_ICP		0 // Optimization method
+#define USE_LINEAR_ICP		0 // 0 -> non-linear optimization. 1 -> linear
 
 #define USE_POINT_TO_PLANE	1 // Objectives - Set only one to true 
 #define USE_SYMMETRIC	    0
 
-#define RUN_SHAPE_ICP		0
+#define RUN_SHAPE_ICP		0 // 0 -> disable. 1 -> enable. Can all be set to 1.
 #define RUN_SEQUENCE_ICP	0
 #define RUN_ETH_ICP			1
 
@@ -46,7 +46,6 @@ int alignBunnyWithICP() {
 	else {
 		optimizer = new CeresICPOptimizer();
 	}
-	
 
     // 6. Set objective // 
 	if (USE_POINT_TO_PLANE) {
@@ -296,9 +295,17 @@ int alignETH() {
 		optimizer = new CeresICPOptimizer();
 	}
 
+    // 1. Matching always knn //
+    optimizer->setMatchingMethod(0);
 	optimizer->setMatchingMaxDistance(1);
-	if (USE_POINT_TO_PLANE) {
+
+    // 6. Set objective // 
+    if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
+		optimizer->setNbOfIterations(20);
+	}
+    else if (USE_SYMMETRIC) {
+		optimizer->setMetric(2);
 		optimizer->setNbOfIterations(20);
 	}
 	else {
@@ -306,15 +313,13 @@ int alignETH() {
 		optimizer->setNbOfIterations(20);
 	}
 
-
-	// Set selection method //
+	// 2. Set selection method //
 	if (SELECTION_METHOD)
 		optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.05);
 	else
 		optimizer->setSelectionMethod(SELECT_ALL);
 
-
-	// Set weighting method //
+	// 3. Set weighting method //
 	if (WEIGHTING_METHOD == 1)
 		optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
 	else if (WEIGHTING_METHOD == 2)
@@ -326,36 +331,47 @@ int alignETH() {
 	else
 		optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
 
-
 	// Create the dataloader
 	ETHDataLoader eth_data_loader{};
-	double min_error = std::numeric_limits<double>::max();
+	
+    double min_error = std::numeric_limits<double>::max();
 	int index_min_error = -1;
 	double min_relative_error = 1;
 	int index_min_relative_error = -1;
-	for (int index = 0; index < 100; index++) {
+
+	for (int index = 0; index < 20; index++) {
 		// Load the source and target mesh
 		Sample input = eth_data_loader.getItem(index);
+
 		Matrix4f estimatedPose = Matrix4f::Identity();
 		PointCloud original_source = input.source.copy_point_cloud();
-		// Apply initial transform to source point cloud
+		
+        // Apply initial transform to source point cloud
 		input.source.change_pose(input.pose);
 		double initial_error = ConvergenceMeasure::calculate_error(original_source.getPclPointCloud(), input.source.getPclPointCloud());
-		// Create a Time Profiler
+		
+        // Create a Time Profiler
 		auto timeMeasure = TimeMeasure();
 		optimizer->setTimeMeasure(timeMeasure);
+
 		// Estimate pose
 		std::cout << "num points source:" << input.source.getPoints().size() << std::endl;
 		std::cout << "num points target:" << input.target.getPoints().size() << std::endl;
-		optimizer->estimatePose(input.source, input.target, estimatedPose);
-		// Calculate time
+		
+        // Apply ICP //
+        optimizer->estimatePose(input.source, input.target, estimatedPose, false);
+        
+        // Calculate time
 		timeMeasure.calculateIterationTime();
-		// std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
+		
+        // std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
 		// std::cout << "true pose:\n" << input.pose << std::endl;
-		// Calculate error
+		
+        // Calculate error after ICP //
 		input.source.change_pose(estimatedPose);
 		double final_error = ConvergenceMeasure::calculate_error(original_source.getPclPointCloud(), input.source.getPclPointCloud());
-		std::cout << "initial error:" << initial_error << std::endl;
+		
+        std::cout << "initial error:" << initial_error << std::endl;
 		std::cout << "final error:" << final_error << std::endl;
 
 		// This code can be used to save the point clouds to disk
