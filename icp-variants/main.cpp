@@ -21,7 +21,7 @@
 
 #define MATCHING_METHOD     0 // 1 -> projective, 0 -> knn. Run projective with sequence_icp 
 #define SELECTION_METHOD    1 // 0 -> all, 1 -> random
-#define WEIGHTING_METHOD    3 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
+#define WEIGHTING_METHOD    0 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
 
 #define USE_LINEAR_ICP		0 // 0 -> non-linear optimization. 1 -> linear
 
@@ -29,6 +29,10 @@
 #define USE_POINT_TO_PLANE	1  
 #define USE_POINT_TO_POINT	0 
 #define USE_SYMMETRIC	    0
+
+// Add color to knn             //
+// Works with all error metrics // 
+#define USE_COLOR_ICP       1 // Enable sequence icp, else it is not used
 
 #define RUN_SHAPE_ICP		0 // 0 -> disable. 1 -> enable. Can all be set to 1.
 #define RUN_SEQUENCE_ICP	1
@@ -223,6 +227,10 @@ int reconstructRoom() {
     if(MATCHING_METHOD){
         optimizer->setMatchingMethod(1);
         optimizer->setCameraParamsMatchingMethod(sensor.getDepthIntrinsics(),sensor.getDepthImageWidth(), sensor.getDepthImageHeight());
+    }
+    else{
+        if(USE_COLOR_ICP)
+            optimizer->enableColorICP(true);
     }
 
     optimizer->setMatchingMaxDistance(0.1f);
