@@ -46,3 +46,4 @@ icp-variants/CMakeSettings.json
 Data/apartment
 Data/apartment_global.txt
 Data/pose_scanner_leica.csv
+Data/rgbd_dataset_freiburg1_xyz/*

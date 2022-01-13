@@ -23,6 +23,7 @@ public:
 
         // Compute normals (as an average of triangle normals).
         m_normals = std::vector<Vector3f>(nVertices, Vector3f::Zero());
+        m_colors = std::vector<Vector4uc>(nVertices, Vector4uc::Zero());
         for (size_t i = 0; i < nTriangles; i++) {
             const auto& triangle = triangles[i];
             Vector3f faceNormal = (m_points[triangle.idx1] - m_points[triangle.idx0]).cross(m_points[triangle.idx2] - m_points[triangle.idx0]);
@@ -55,6 +56,7 @@ public:
 
         m_normals = std::vector<Vector3f>(cloud_normals->points.size(), Vector3f::Zero());
         m_points = std::vector<Vector3f>(cloud_normals->points.size(), Vector3f::Zero());
+        m_colors = std::vector<Vector4uc>(cloud_normals->points.size(), Vector4uc::Zero());
         std::cout << "Copying points and normals" << std::endl;
         // Assignment part
         for (int i = 0; i < cloud_normals->points.size(); i++)
@@ -69,6 +71,7 @@ public:
                 cloud_normals->points[i].normal_y,
                 cloud_normals->points[i].normal_z
             };
+            m_colors[i] = Vector4uc{ 255, 255, 255, 1 };
         }
     }
 
@@ -241,6 +244,34 @@ public:
 
         pcl::io::savePLYFile(filename, cloud_out);
         return true;
+    }
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr getPclPointCloud() {
+        pcl::PointCloud<pcl::PointXYZ> cloud_out;
+        cloud_out.width = 1;
+        cloud_out.height = m_points.size();
+        cloud_out.points.resize(m_points.size());
+        for (int i = 0; i < m_points.size(); i++)
+        {
+            cloud_out.points[i].x = m_points[i].x();
+            cloud_out.points[i].y = m_points[i].y();
+            cloud_out.points[i].z = m_points[i].z();
+        }
+        return cloud_out.makeShared();
+    }
+
+    PointCloud copy_point_cloud() {
+        PointCloud cloud_out;
+        cloud_out.m_normals = std::vector<Vector3f>(m_points.size(), Vector3f::Zero());
+        cloud_out.m_points = std::vector<Vector3f>(m_points.size(), Vector3f::Zero());
+        cloud_out.m_colors = std::vector<Vector4uc>(m_points.size(), Vector4uc::Zero());
+        for (int i = 0; i < m_points.size(); i++)
+        {
+            cloud_out.m_points[i] = m_points[i];
+            cloud_out.m_normals[i] = m_normals[i];
+            cloud_out.m_colors[i] = m_colors[i];
+        }
+        return cloud_out;
     }
 
     void change_pose(const Matrix4f& pose) {

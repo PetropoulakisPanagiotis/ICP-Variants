@@ -16,11 +16,6 @@ public:
 
     template <typename T>
     bool operator()(const T* const pose, T* residuals) const {
-        // TODO: Implemented the point-to-point cost function.
-        // The resulting 3D residual should be stored in residuals array. To apply the pose 
-        // increment (pose parameters) to the source point, you can use the PoseIncrement
-        // class.
-        // Important: Ceres automatically squares the cost function.
 
         /*  Use poseIncrement to apply transformation to source point */
         PoseIncrement<T> poseIncrement = PoseIncrement<T>((T* const)pose);
@@ -62,11 +57,6 @@ public:
 
     template <typename T>
     bool operator()(const T* const pose, T* residuals) const {
-        // TODO: Implemented the point-to-plane cost function.
-        // The resulting 1D residual should be stored in residuals array. To apply the pose 
-        // increment (pose parameters) to the source point, you can use the PoseIncrement
-        // class.
-        // Important: Ceres automatically squares the cost function.
 
         /*  Use poseIncrement to apply transformation to source point */
         PoseIncrement<T> poseIncrement = PoseIncrement<T>((T* const)pose);
