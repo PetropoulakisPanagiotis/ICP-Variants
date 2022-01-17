@@ -29,6 +29,7 @@ public:
 std::vector<std::vector<std::string> > CSVReader::getData()
 {
     std::ifstream file(fileName);
+    if (!file.good()) throw std::runtime_error("Could not open file : "+fileName);
     std::vector<std::vector<std::string> > dataList;
     std::string line = "";
     // Iterate through each line and split the content using delimeter

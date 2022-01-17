@@ -10,11 +10,13 @@
 
 class ETHDataLoader : public DataLoader {
 public:
-	ETHDataLoader() {
+	ETHDataLoader(const std::string& filename = "apartment") :
+		fileName(filename)
+	{
 		// CSVWriter is not our work!
 		// source: https://thispointer.com/how-to-read-data-from-a-csv-file-in-c/
         // Create an object of CSVWriter
-		CSVReader reader("../../Data/apartment_local.csv");
+		CSVReader reader("../../Data/" + fileName + "_local.csv");
 
 		// Get the data from CSV File
 		poseList = reader.getData();
@@ -50,10 +52,10 @@ public:
 		// Load the correct source cloud
 		std::cout << "Starting data loader for source point cloud" << std::endl;
 		
-        const std::string filenameSource = std::string("../../Data/apartment/" + vec[1]);
+        const std::string filenameSource = std::string("../../Data/" + fileName + "/" + vec[1]);
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source(new pcl::PointCloud<pcl::PointXYZ>);
 		if (pcl::io::loadPCDFile<pcl::PointXYZ>(filenameSource, *cloud_source) == -1) {
-			PCL_ERROR("Couldn't read source point cloud for apartment data");
+			PCL_ERROR(std::string("Couldn't read source point cloud for " + fileName + " data").c_str());
 			throw std::runtime_error("Could not open file");
 		}
 
@@ -68,11 +70,11 @@ public:
 		// Load the correct target point cloud
 		std::cout << "Starting data loader for target point cloud" << std::endl;
 
-        const std::string filenameTarget = std::string("../../Data/apartment/" + vec[2]);
+        const std::string filenameTarget = std::string("../../Data/" + fileName + "/" + vec[2]);
         
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_target(new pcl::PointCloud<pcl::PointXYZ>);
         if (pcl::io::loadPCDFile<pcl::PointXYZ>(filenameTarget, *cloud_target) == -1) {
-			PCL_ERROR("Couldn't read target point cloud for apartment data");
+			PCL_ERROR(std::string("Couldn't read source point cloud for " + fileName + " data").c_str());
 			throw std::runtime_error("Could not open file");
 		}
         
@@ -89,4 +91,5 @@ public:
 
 private:
 	std::vector<std::vector<std::string>> poseList;
+	std::string fileName;
 };
