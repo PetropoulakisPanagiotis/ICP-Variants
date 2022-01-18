@@ -1,4 +1,6 @@
 #pragma once
+#include <iostream>
+#include <fstream>
 #include <vector>
 #include <math.h>
 #include <assert.h>
@@ -6,6 +8,7 @@
 #include <pcl/common/distances.h>
 #include <pcl/point_cloud.h>
 #include "PointCloud.h"
+
 #include "Eigen.h"
 #include "utils.h"
 
@@ -92,4 +95,16 @@ public:
 
         return error;
     };
+
+    void writeToFile(std::string nameFile){
+        std::ofstream newFile;
+
+        newFile.open(nameFile);
+
+        for(unsigned int i = 0; i < this->iterationErrors.size(); i++){
+            newFile << iterationErrors[i] << std::endl;
+        }
+
+        newFile.close();
+    }
 };
