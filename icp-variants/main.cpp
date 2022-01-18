@@ -21,16 +21,22 @@
 
 #define MATCHING_METHOD     0 // 1 -> projective, 0 -> knn. Run projective with sequence_icp 
 #define SELECTION_METHOD    1 // 0 -> all, 1 -> random
-#define WEIGHTING_METHOD    1 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors, 4-> hybrid
+#define WEIGHTING_METHOD    2 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
 
-#define USE_LINEAR_ICP		0 // 0 -> non-linear optimization. 1 -> linear
+#define USE_LINEAR_ICP		1 // 0 -> non-linear optimization. 1 -> linear
 
-#define USE_POINT_TO_PLANE	1 // Objectives - Set only one to true 
-#define USE_SYMMETRIC	    0
+// Set metric - Enable only one //
+#define USE_POINT_TO_PLANE	0  
+#define USE_POINT_TO_POINT	0 
+#define USE_SYMMETRIC	    1
 
-#define RUN_SHAPE_ICP		0 // 0 -> disable. 1 -> enable. Can all be set to 1.
-#define RUN_SEQUENCE_ICP	0
-#define RUN_ETH_ICP			1
+// Add color to knn             //
+// Works with all error metrics // 
+#define USE_COLOR_ICP       0 // Enable sequence icp, else it is not used
+
+#define RUN_SHAPE_ICP		1 // 0 -> disable. 1 -> enable. Can all be set to 1.
+#define RUN_SEQUENCE_ICP    0
+#define RUN_ETH_ICP		    0
 
 int alignBunnyWithICP() {
 	// Load the source and target mesh.
@@ -56,7 +62,7 @@ int alignBunnyWithICP() {
 		optimizer->setMetric(2);
 		optimizer->setNbOfIterations(20);
 	}
-	else {
+	else if(USE_POINT_TO_POINT){
 		optimizer->setMetric(0);
 		optimizer->setNbOfIterations(20);
 	}
@@ -73,18 +79,20 @@ int alignBunnyWithICP() {
 	    optimizer->setSelectionMethod(SELECT_ALL);
 
     // 3. Set weighting method //
-    if(WEIGHTING_METHOD == 1)
+    if(WEIGHTING_METHOD == 1){
         optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
-    else if(WEIGHTING_METHOD == 2)
+    }
+    else if(WEIGHTING_METHOD == 2){
         optimizer->setWeightingMethod(NORMALS_WEIGHTING);
-    else if(WEIGHTING_METHOD == 3)
+    }
+    else if(WEIGHTING_METHOD == 3){
         optimizer->setWeightingMethod(COLORS_WEIGHTING);
-    else if(WEIGHTING_METHOD == 4)
-        optimizer->setWeightingMethod(HYBRID_WEIGHTING);
-    else
+    }
+    else{
         optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
+    }
 
-	// load the sample
+    // load the sample
 	Sample input = bunny_data_loader.getItem(0);
     Matrix4f estimatedPose = Matrix4f::Identity();
 
@@ -155,8 +163,12 @@ int alignBunnyWithICP() {
 			resultingMesh = SimpleMesh::joinMeshes(SimpleMesh::sphere(targetPoint, 0.003f, Vector4uc(255, 0, 255, 0)), resultingMesh, Matrix4f::Identity());
 		}
 	}
+
 	resultingMesh.writeMesh(std::string("bunny_icp.off"));
 	std::cout << "Resulting mesh written." << std::endl;
+
+    // saving iteration errors to file //
+    convergenMearsure.writeToFile("RMSE.txt");
 
 	delete optimizer;
 
@@ -206,7 +218,7 @@ int reconstructRoom() {
 		optimizer->setMetric(2);
 		optimizer->setNbOfIterations(20);
 	}
-	else {
+	else if(USE_POINT_TO_POINT){
 		optimizer->setMetric(0);
 		optimizer->setNbOfIterations(20);
 	}
@@ -215,6 +227,10 @@ int reconstructRoom() {
     if(MATCHING_METHOD){
         optimizer->setMatchingMethod(1);
         optimizer->setCameraParamsMatchingMethod(sensor.getDepthIntrinsics(),sensor.getDepthImageWidth(), sensor.getDepthImageHeight());
+    }
+    else{
+        if(USE_COLOR_ICP)
+            optimizer->enableColorICP(true);
     }
 
     optimizer->setMatchingMaxDistance(0.1f);
@@ -226,16 +242,18 @@ int reconstructRoom() {
 	    optimizer->setSelectionMethod(SELECT_ALL);
 
     // 3. Set weighting method //
-    if(WEIGHTING_METHOD == 1)
+    if(WEIGHTING_METHOD == 1){
         optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
-    else if(WEIGHTING_METHOD == 2)
+    }
+    else if(WEIGHTING_METHOD == 2){
         optimizer->setWeightingMethod(NORMALS_WEIGHTING);
-    else if(WEIGHTING_METHOD == 3)
+    }
+    else if(WEIGHTING_METHOD == 3){
         optimizer->setWeightingMethod(COLORS_WEIGHTING);
-    else if(WEIGHTING_METHOD == 4)
-        optimizer->setWeightingMethod(HYBRID_WEIGHTING);
-    else
+    }
+    else{
         optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
+    }
 
     // Create a Time Profiler
 	auto timeMeasure = TimeMeasure();
@@ -249,16 +267,18 @@ int reconstructRoom() {
 	int i = 0;
 	const int iMax = 50; //50
 	while (sensor.processNextFrame() && i <= iMax) {
-		float* depthMap = sensor.getDepth();
+        float* depthMap = sensor.getDepth();
 		Matrix3f depthIntrinsics = sensor.getDepthIntrinsics();
 		Matrix4f depthExtrinsics = sensor.getDepthExtrinsics();
 
 		// Estimate the current camera pose from source to target mesh with ICP optimization.
 		// We downsample the source image to speed up the correspondence matching.
 		PointCloud source{ sensor.getDepth(), sensor.getColorRGBX(),sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), false, 8 };
-        optimizer->estimatePose(source, target, currentCameraToWorld);
+        
+        // Apply ICP //        
+        optimizer->estimatePose(source, target, currentCameraToWorld, false);
 		
-		// Invert the transformation matrix to get the current camera pose.
+        // Invert the transformation matrix to get the current camera pose.
 		Matrix4f currentCameraPose = currentCameraToWorld.inverse();
 		std::cout << "Current camera pose: " << std::endl << currentCameraPose << std::endl;
 		estimatedPoses.push_back(currentCameraPose);
@@ -308,7 +328,7 @@ int alignETH() {
 		optimizer->setMetric(2);
 		optimizer->setNbOfIterations(20);
 	}
-	else {
+	else if (USE_POINT_TO_POINT){
 		optimizer->setMetric(0);
 		optimizer->setNbOfIterations(20);
 	}
@@ -320,16 +340,18 @@ int alignETH() {
 		optimizer->setSelectionMethod(SELECT_ALL);
 
 	// 3. Set weighting method //
-	if (WEIGHTING_METHOD == 1)
-		optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
-	else if (WEIGHTING_METHOD == 2)
-		optimizer->setWeightingMethod(NORMALS_WEIGHTING);
-	else if (WEIGHTING_METHOD == 3)
-		optimizer->setWeightingMethod(COLORS_WEIGHTING);
-	else if (WEIGHTING_METHOD == 4)
-		optimizer->setWeightingMethod(HYBRID_WEIGHTING);
-	else
-		optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
+    if(WEIGHTING_METHOD == 1){
+        optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
+    }
+    else if(WEIGHTING_METHOD == 2){
+        optimizer->setWeightingMethod(NORMALS_WEIGHTING);
+    }
+    else if(WEIGHTING_METHOD == 3){
+        optimizer->setWeightingMethod(COLORS_WEIGHTING);
+    }
+    else{
+        optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
+    }
 
 	// Create the dataloader
 	ETHDataLoader eth_data_loader{};

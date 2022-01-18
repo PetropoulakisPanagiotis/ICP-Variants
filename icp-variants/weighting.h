@@ -3,26 +3,20 @@
 #include "PointCloud.h"
 #include "NearestNeighbor.h"
 
-enum weighting_methods {CONSTANT_WEIGHTING=0, DISTANCES_WEIGHTING, NORMALS_WEIGHTING, COLORS_WEIGHTING, HYBRID_WEIGHTING};
+#define MAX_COLOR_DIFFERENCE 195075 
 
-// When applying all methods, add an additional weighting factor to each of them //
-struct HybridWeights{
-    float distancesWeight; // E.g. 0.4
-    float normalsWeight;   //      0.4 
-    float colorsWeight;    //      0.2
-};
+enum weighting_methods {CONSTANT_WEIGHTING=0, DISTANCES_WEIGHTING, NORMALS_WEIGHTING, COLORS_WEIGHTING};
 
 // Weighitng class for correspondences // 
 class WeightingMethod{
     private:
         int method;
-        HybridWeights hybridWeights; 
         float maxDistance;
 
         float calculateDistancesWeight(const Vector3f& sourcePoint, const Vector3f& targetPoint){
             Vector3f diff = sourcePoint - targetPoint;
 
-            return 1 - ((diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2]) / this->maxDistance);
+            return 1.0 - ((diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2]) / this->maxDistance);
         }
 
         float calculateNormalsWeight(const Vector3f& sourceNormal, const Vector3f& targetNormal){
@@ -32,13 +26,13 @@ class WeightingMethod{
         }
 
         float calculateColorsWeight(const Vector4uc& sourceColor, const Vector4uc& targetColor){
-            return 1.0;
+            Vector4uc diff = sourceColor - targetColor;
+            return 1.0 - (float(diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2]) / float(MAX_COLOR_DIFFERENCE));
         }
 
     public:
-        WeightingMethod(int method = DISTANCES_WEIGHTING, float maxDistance = 0.0003f, HybridWeights hybridWeights = {1.0, 1.0, 1.0}){
+        WeightingMethod(int method = DISTANCES_WEIGHTING, float maxDistance = 0.0003f){
             this->method = method;
-            this->hybridWeights = hybridWeights;
             this->maxDistance = maxDistance;
         }
 
@@ -60,7 +54,7 @@ class WeightingMethod{
                 
                 float matchNewWeight = 0.0;
 
-                if(this->method == DISTANCES_WEIGHTING || this->method == HYBRID_WEIGHTING){
+                if(this->method == DISTANCES_WEIGHTING || this->method == COLORS_WEIGHTING){
                     
                     if(!sourcePoints[i].allFinite() || !targetPoints[matches[i].idx].allFinite())
                         matchNewWeight += 0.0;
@@ -69,12 +63,12 @@ class WeightingMethod{
                      
                         float distancesWeight = calculateDistancesWeight(sourcePoints[i], targetPoints[matches[i].idx]);
 
-                        matchNewWeight += this->hybridWeights.distancesWeight * distancesWeight;
+                        matchNewWeight += distancesWeight;
                     }
 
                 }
 
-                if(this->method == NORMALS_WEIGHTING || this->method == HYBRID_WEIGHTING){
+                if(this->method == NORMALS_WEIGHTING){
                     
                     if(!sourceNormals[i].allFinite() || !targetNormals[matches[i].idx].allFinite())
                         matchNewWeight += 0.0;
@@ -82,14 +76,15 @@ class WeightingMethod{
                     else {
                         float normalsWeight = calculateNormalsWeight(sourceNormals[i], targetNormals[matches[i].idx]);
                     
-                        matchNewWeight += this->hybridWeights.normalsWeight * normalsWeight;
+                        matchNewWeight += normalsWeight;
                     }
                 }
 
-                if(this->method == COLORS_WEIGHTING || this->method == HYBRID_WEIGHTING){
+                if(this->method == COLORS_WEIGHTING){
+                    
                     float colorsWeight = calculateColorsWeight(sourceColors[i], targetColors[matches[i].idx]);
                     
-                    matchNewWeight += this->hybridWeights.colorsWeight * colorsWeight;
+                    matchNewWeight *= colorsWeight;
                 }
           
                 // Fix weight of current correspondence // 
