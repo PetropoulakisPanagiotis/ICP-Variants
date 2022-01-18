@@ -41,21 +41,21 @@ public:
      * at each iteration.
      */
     void calculateIterationTime() {
-        iterSelectionTime = selectionTime;
+        iterSelectionTime = selectionTime / *nIterations;
         iterMatchingTime = matchingTime / *nIterations;
         iterWeighingTime = weighingTime / *nIterations;
         iterRejectionTime = rejectionTime / *nIterations;
         iterSolverTime = solverTime / *nIterations;
-        iterConvergenceTime = convergenceTime / *nIterations;
+        iterConvergenceTime = convergenceTime;
 
         std::cout << 
-            "Average Convergence time = " << iterConvergenceTime << " s per iteration\n" <<
-            "Time taken for each step:\n" <<
+            "Convergence time = " << iterConvergenceTime << " s\n" <<
+            "Time taken for each step (average):\n" <<
             "\t [*] Selection time = " << iterSelectionTime << " s \n" <<
             "\t [*] Matching time = " << iterMatchingTime << " s per iteration\n" <<
             "\t [*] Weighing time = " << iterWeighingTime << " s per iteration\n" <<
             "\t [*] Rejection time = " << iterRejectionTime << " s per iteration\n" <<
-            "\t [*] Solver time = " << iterSolverTime << " s per iteration\n"
+            "\t [*] Minimization (one icp step) time = " << iterSolverTime << " s per iteration\n"
             ;
     }
 

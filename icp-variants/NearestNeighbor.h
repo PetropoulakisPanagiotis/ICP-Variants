@@ -178,7 +178,6 @@ public:
 		std::vector<Match> matches;
 		matches.reserve(nMatches);
 
-        std::cout << m_maxDistance << std::endl;
 		for (int i = 0; i < nMatches; ++i) {
 			if (*distances[i] <= m_maxDistance)        
 				matches.push_back(Match{ *indices[i], 1.f });
