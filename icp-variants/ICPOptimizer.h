@@ -203,27 +203,6 @@ public:
             double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
             std::cout << "Completed in " << elapsedSecs << " seconds." << std::endl;
 
-
-            std::vector<Vector3f> sourcePoints;
-            std::vector<Vector3f> targetPoints;
-            // Add correspondences source and target normals.
-            std::vector<Vector3f> sourceNormals;
-            std::vector<Vector3f> targetNormals;
-
-            // Add all matches to the sourcePoints and targetPoints vector,
-            // so that the sourcePoints[i] matches targetPoints[i]. For every source point,
-            // the matches vector holds the index of the matching target point.
-            for (int j = 0; j < transformedPoints.size(); j++) {
-                const auto& match = matches[j];
-                if (match.idx >= 0) {
-                    sourcePoints.push_back(transformedPoints[j]);
-                    targetPoints.push_back(target.getPoints()[match.idx]);
-
-                    sourceNormals.push_back(transformedNormals[j]);
-                    targetNormals.push_back(target.getNormals()[match.idx]);
-                }
-            }
-
             step_start = clock();
 
             // Prepare point-to-point and point-to-plane constraints.
@@ -233,7 +212,7 @@ public:
             else if(metric == 1)
                 prepareConstraintsPlaneICP(transformedPoints, target.getPoints(), target.getNormals(), matches, poseIncrement, problem);
             else if(metric == 2)
-                prepareConstraintsSymmetricICP(sourcePoints, targetPoints, sourceNormals, targetNormals, matches, poseIncrement, problem);
+                prepareConstraintsSymmetricICP(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), matches, poseIncrement, problem);
 
             // Configure options for the solver.
             ceres::Solver::Options options;
@@ -321,7 +300,7 @@ private:
                     ),
                     nullptr, poseIncrement.getData()
                 );
-
+                
                 const auto& targetNormal = targetNormals[match.idx];
 
                 if (!targetNormal.allFinite())
@@ -336,37 +315,6 @@ private:
 
             }
         }
-    }
-
-    void prepareConstraintsColorICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
-        const unsigned nPoints = sourcePoints.size();
-        /*
-        for (unsigned i = 0; i < nPoints; ++i) {
-            const auto match = matches[i];
-            if (match.idx >= 0) {
-                const auto& sourcePoint = sourcePoints[i];
-                const auto& targetPoint = targetPoints[match.idx];
-
-                if (!sourcePoint.allFinite() || !targetPoint.allFinite())
-                    continue;
-
-                const auto& targetNormal = targetNormals[match.idx];
-
-                if (!targetNormal.allFinite())
-                    continue;
-
-                // TODO: Create a new point-to-plane cost function and add it as constraint (i.e. residual block) 
-                // to the Ceres problem.
-                problem.AddResidualBlock(
-                    new ceres::AutoDiffCostFunction<PointToPlaneConstraint, 1, 6>(
-                        new PointToPlaneConstraint(sourcePoint, targetPoint, targetNormal, match.weight)
-                    ),
-                    nullptr, poseIncrement.getData()
-                );
-
-            }
-        }
-        */
     }
 
     void prepareConstraintsSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
@@ -376,28 +324,35 @@ private:
         for (unsigned i = 0; i < nPoints; ++i) {
             const auto match = matches[i];
 
-            const auto& sourcePoint = sourcePoints[i];
-            const auto& targetPoint = targetPoints[i];
-            
-            if (!sourcePoint.allFinite() || !targetPoint.allFinite())
-                continue;
-            
-            const auto& sourceNormal = sourceNormals[i];
-            const auto& targetNormal = targetNormals[i];
-            
-            if (!targetNormal.allFinite() || !sourceNormal.allFinite())
-                continue;
-            
-            problem.AddResidualBlock(
-                new ceres::AutoDiffCostFunction<SymmetricConstraint, 1, 6>(
-                    new SymmetricConstraint(sourcePoint, targetPoint, sourceNormal, targetNormal)
+            if(match.idx >= 0){
+                const auto& sourcePoint = sourcePoints[i];
+                const auto& targetPoint = targetPoints[match.idx];
+                
+                if (!sourcePoint.allFinite() || !targetPoint.allFinite())
+                    continue;
+                
+                problem.AddResidualBlock(
+                    new ceres::AutoDiffCostFunction<PointToPointConstraint, 3, 6>(
+                        new PointToPointConstraint(sourcePoint, targetPoint, match.weight)
                     ),
-                nullptr, poseIncrement.getData()
-            );
-        }
-        
-    }
+                    nullptr, poseIncrement.getData()
+                );
 
+                const auto& sourceNormal = sourceNormals[i];
+                const auto& targetNormal = targetNormals[match.idx];
+
+                if (!targetNormal.allFinite() || !sourceNormal.allFinite())
+                    continue;               
+
+                problem.AddResidualBlock(
+                    new ceres::AutoDiffCostFunction<SymmetricConstraint, 1, 6>(
+                        new SymmetricConstraint(sourcePoint, targetPoint, sourceNormal, targetNormal)
+                        ),
+                    nullptr, poseIncrement.getData()
+                );
+            }
+        }
+    }
 };
 
 
@@ -632,8 +587,8 @@ private:
         const unsigned nPoints = sourcePoints.size();
 
         // Build the system
-        MatrixXf A = MatrixXf::Zero(nPoints, 6);
-        VectorXf b = VectorXf::Zero(nPoints);
+        MatrixXf A = MatrixXf::Zero(4 * nPoints, 6);
+        VectorXf b = VectorXf::Zero(4 * nPoints);
 
         // Normalize source and target points to center (0,0,0)
         // Todo Compute mean
@@ -651,11 +606,31 @@ private:
 
             Vector3f normal_sum = targetNormals[i] + sourceNormals[i];
             // b
-            b(i) = (d_normalized - s_normalized).dot(normal_sum);
+            b(4 * i) = (d_normalized - s_normalized).dot(normal_sum);
 
             // Add the Symmetric constraints to the system
-            A.row(i).segment(0, 3) = (s_normalized + d_normalized).cross(normal_sum);
-            A.row(i).segment(3, 3) = normal_sum;
+            A.row(4 * i).segment(0, 3) = (s_normalized + d_normalized).cross(normal_sum);
+            A.row(4 * i).segment(3, 3) = normal_sum;
+            
+            // Add point-to-point constraints //
+            // Second row 
+            RowVectorXf pointConstraintRow(6);
+            pointConstraintRow << 0, s_normalized[2], -s_normalized[1], 1.0, 0.0, 0.0; // a, b, g, tx, ty, tz
+            
+            A.row(4*i + 1) = pointConstraintRow;
+            b(4*i + 1) = d_normalized[0] - s_normalized[0];
+
+            // Third row 
+            pointConstraintRow << -s_normalized[2], 0, s_normalized[0], 0, 1.0, 0.0;
+            
+            A.row(4*i + 2) = pointConstraintRow;
+            b(4*i + 2) = d_normalized[1] - s_normalized[1];
+
+            // Fourth row 
+            pointConstraintRow << s_normalized[1], -s_normalized[0], 0.0, 0.0, 0.0, 1.0;
+            
+            A.row(4*i + 3) = pointConstraintRow;
+            b(4*i + 3) = d_normalized[2] - s_normalized[2];
         }
 
         // Solve the system
@@ -683,13 +658,13 @@ private:
         Vector3f t_tilde = x.tail(3);
         float tan_theta = a_tilde.norm(); // Assure a_tilde > 0
         Vector3f a = a_tilde / tan_theta;
-        std::cout << "a length " << a.norm() <<  "tan_theta" << tan_theta << "\n";
+        //std::cout << "a length " << a.norm() <<  "tan_theta" << tan_theta << "\n";
 
         // TODO compute angle theta; or its cos sin from a_tilde
         // Sin, cos is positive or negative
         float sin_theta = tan_theta / std::sqrt(1.0 + tan_theta * tan_theta);
         float cos_theta = sin_theta / tan_theta; 
-        std::cout << "Cos theta: " << cos_theta << " - Sin theta: " << sin_theta << "\n";
+        //std::cout << "Cos theta: " << cos_theta << " - Sin theta: " << sin_theta << "\n";
         Vector3f t = t_tilde * cos_theta; // Look good
 
         // TODO Fix this
