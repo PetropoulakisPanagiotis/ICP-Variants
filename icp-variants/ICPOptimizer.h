@@ -84,6 +84,37 @@ public:
     void setConvergenceMeasure(ConvergenceMeasure& convergenMearsure) {
         m_convergenceMeasure = &convergenMearsure;
     }
+    
+    void printICPConfiguration(){
+        std::cout << "Starting ICP with the following configuration:\n";
+
+        if(colorICP)
+            std::cout << "Color-ICP enabled\n";
+
+        if(selectionMethod == SELECT_ALL)
+            std::cout << "1. Selection: all\n";
+        else if(selectionMethod == RANDOM_SAMPLING)
+            std::cout << "1. Selection: random\n";
+
+        if(matchingMethod == 1)
+            std::cout << "2. Matching: projective (max distance " << maxDistance << " m)\n";
+        else if(matchingMethod == 0)
+            std::cout << "2. Matching: k-nn (max distance " << maxDistance << " m)\n";
+   
+        if(weightingMethod == 0)
+            std::cout << "3. Weighting: constant\n";
+        else if(weightingMethod == 1)
+            std::cout << "3. Weighting: point distances\n";
+        else if(weightingMethod == 2)
+            std::cout << "3. Weighting: normals\n";
+        else if(weightingMethod == 3)
+            std::cout << "3. Weighting: colors\n";
+    
+        if(rejectionMethod == 1)
+            std::cout << "4. Rejection: angle of normals\n";
+        else
+            std::cout << "4. Rejection: keep all\n";
+    }
 
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose, bool calculateRMSE = true) = 0;
 
@@ -130,22 +161,22 @@ public:
     CeresICPOptimizer() {}
 
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose, bool calculateRMSE = true) override {
-        clock_t step_start, step_end, start, begin, end, tot_time;
+        clock_t step_start, start, tot_time; 
+        double iter_time; 
+        // Use step_start as tmp var for every step
+        // iter_time print time needed per iteration 
+        
+        printICPConfiguration();
+        
+        start = clock(); // Measure the whole iteration 
 
-        start = clock();
-
-        step_start = clock();
-        // 1. Selection step //
         // Initialize selection step //
         auto sourceSelection = PointSelection(source, selectionMethod, proba);
-        m_timeMeasure->selectionTime += double(clock() - step_start) / CLOCKS_PER_SEC;
-
 
         // Initialize weighting step //
         auto weightingStep = WeightingMethod(this->weightingMethod, this->maxDistance);
 
         // Initialize matching step // 
-
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
         if(this->colorICP)
             m_nearestNeighborSearch->buildIndex(target.getPoints(), target.getColors());
@@ -163,22 +194,24 @@ public:
 
         for (int i = 0; i < m_nIterations; ++i) {
 
-            // Compute the matches.
-            std::cout << "Matching points ..." << std::endl;
-            begin = clock();
-
             // 1. Selection Step // 
+            step_start = clock();
             // Change source to sourceSelection to do selection.
             if (selectionMethod == RANDOM_SAMPLING) // Resample each iteration
                 sourceSelection.resample();
+            m_timeMeasure->selectionTime += double(clock() - step_start) / CLOCKS_PER_SEC;
             
             auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
             auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
             std::cout << "Number of source points to match = " << transformedPoints.size() << std::endl;
 
-            step_start = clock();
-            //2. Matching step //
+            // 2. Matching step //
+            // Compute the matches.
             std::vector<Match> matches; 
+            
+            std::cout << "Matching points ..." << std::endl;
+            
+            step_start = clock();
             if(this->colorICP)
                 matches = m_nearestNeighborSearch->queryMatches(transformedPoints, sourceSelection.getColors());
             else
@@ -186,27 +219,28 @@ public:
             
             m_timeMeasure->matchingTime += double(clock() - step_start) / CLOCKS_PER_SEC;
           
-            step_start = clock();
             // 3. Weighting step // 
+            step_start = clock();
             weightingStep.applyWeights(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), 
                                        sourceSelection.getColors(), target.getColors(), matches);
             
             m_timeMeasure->weighingTime += double(clock() - step_start) / CLOCKS_PER_SEC;
-            step_start = clock();
+            
             // 4. Rejection step //
+            step_start = clock();
             if (rejectionMethod == 1)
                 pruneCorrespondences(transformedNormals, target.getNormals(), matches);
             m_timeMeasure->rejectionTime += double(clock() - step_start) / CLOCKS_PER_SEC;
 
-            // TODO : What to do with this part?
-            end = clock();
-            double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
-            std::cout << "Completed in " << elapsedSecs << " seconds." << std::endl;
+            // 5. Select error metric //            
+            ceres::Problem problem;
+            ceres::Solver::Summary summary;
+            ceres::Solver::Options options;
+
+            // Configure options for the solver.
+            configureSolver(options);
 
             step_start = clock();
-
-            // Prepare point-to-point and point-to-plane constraints.
-            ceres::Problem problem;
             if(metric == 0)
                 prepareConstraintsPointICP(transformedPoints, target.getPoints(), target.getNormals(), matches, poseIncrement, problem);
             else if(metric == 1)
@@ -214,37 +248,34 @@ public:
             else if(metric == 2)
                 prepareConstraintsSymmetricICP(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), matches, poseIncrement, problem);
 
-            // Configure options for the solver.
-            ceres::Solver::Options options;
-            configureSolver(options);
-
             // Run the solver (for one iteration).
-            ceres::Solver::Summary summary;
             ceres::Solve(options, &problem, &summary);
+           
+            iter_time = double(clock() - step_start) / CLOCKS_PER_SEC;
+            m_timeMeasure->solverTime += iter_time; 
+            
             std::cout << summary.BriefReport() << std::endl;
             //std::cout << summary.FullReport() << std::endl;
-
-            m_timeMeasure->solverTime += double(clock() - step_start) / CLOCKS_PER_SEC;
 
             // Update the current pose estimate (we always update the pose from the left, using left-increment notation).
             Matrix4f matrix = PoseIncrement<double>::convertToMatrix(poseIncrement);
             estimatedPose = PoseIncrement<double>::convertToMatrix(poseIncrement) * estimatedPose;
             poseIncrement.setZero();
 
-            std::cout << "Optimization iteration done." << std::endl;
-
+            std::cout << "Optimization iteration done (in " << iter_time << "s)"  << std::endl;
+            
             // RMSE compute
             if (calculateRMSE) {
                 m_convergenceMeasure->recordAlignmentError(estimatedPose);
             }
         }
 
-        m_timeMeasure->convergenceTime += double(clock() - start) / CLOCKS_PER_SEC;
-
         // Store result
         initialPose = estimatedPose;
-    }
 
+        // Measure the whole actual time //
+        m_timeMeasure->convergenceTime += double(clock() - start) / CLOCKS_PER_SEC;
+    }
 
 private:
     void configureSolver(ceres::Solver::Options& options) {
@@ -259,6 +290,8 @@ private:
 
     void prepareConstraintsPointICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
         const unsigned nPoints = sourcePoints.size();
+        
+        std::cout << "Preparing Point-to-Point ICP Non-linear" << std::endl;
 
         for (unsigned i = 0; i < nPoints; ++i) {
             const auto match = matches[i];
@@ -285,6 +318,8 @@ private:
     void prepareConstraintsPlaneICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
         const unsigned nPoints = sourcePoints.size();
 
+        std::cout << "Preparing Point-to-Plane ICP Non-linear" << std::endl;
+        
         for (unsigned i = 0; i < nPoints; ++i) {
             const auto match = matches[i];
             if (match.idx >= 0) {
@@ -319,7 +354,8 @@ private:
 
     void prepareConstraintsSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
         const unsigned nPoints = sourcePoints.size();
-        std::cout << "Symmetric ICP Non-linear" << std::endl;
+        
+        std::cout << "Preparing Symmetric ICP Non-linear" << std::endl;
         
         for (unsigned i = 0; i < nPoints; ++i) {
             const auto match = matches[i];
@@ -364,17 +400,22 @@ public:
     LinearICPOptimizer() {}
 
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose, bool calculateRMSE = true) override {
+        clock_t start, step_start, tot_time;
+        double iter_time; 
+        // Use step_start as tmp var for every step
+        // iter_time print time needed per iteration 
+    
+        printICPConfiguration();
         
-        clock_t start = clock();
-        // 1. Selection step //
+        start = clock();
+
         // Initialize selection step //
         auto sourceSelection = PointSelection(source, selectionMethod, proba);
 
         // Initialize weightingStep step //
         auto weightingStep = WeightingMethod(this->weightingMethod, this->maxDistance);
         
-        // Change PointCloud source to PointSelection source
-        
+        // Initialize matching step // 
         // Build the index of the FLANN tree (for fast nearest neighbor lookup).
         if(this->colorICP)
             m_nearestNeighborSearch->buildIndex(target.getPoints(), target.getColors());
@@ -385,52 +426,50 @@ public:
         Matrix4f estimatedPose = initialPose;
 
         for (int i = 0; i < m_nIterations; ++i) {
-            // Compute the matches.
-            std::cout << "Matching points ..." << std::endl;
-            clock_t begin = clock();
 
             // 1. Selection step //
+            step_start = clock();
             // Change source to sourceSelection to do selection.
             if (selectionMethod == RANDOM_SAMPLING) // Resample each iteration
                 sourceSelection.resample();
+            m_timeMeasure->selectionTime += double(clock() - step_start) / CLOCKS_PER_SEC;
             
             auto transformedPoints = transformPoints(sourceSelection.getPoints(), estimatedPose);
             auto transformedNormals = transformNormals(sourceSelection.getNormals(), estimatedPose);
             std::cout << "Number of source points to match = " << transformedPoints.size() << std::endl;
 
-            start = clock();
             //2. Matching step //
             std::vector<Match> matches; 
+            std::cout << "Matching points ..." << std::endl;
+            
+            step_start = clock();
             if(this->colorICP)
                 matches = m_nearestNeighborSearch->queryMatches(transformedPoints, sourceSelection.getColors());
             else
                 matches = m_nearestNeighborSearch->queryMatches(transformedPoints);
             
-            m_timeMeasure->matchingTime += double(clock() - start) / CLOCKS_PER_SEC;
+            m_timeMeasure->matchingTime += double(clock() - step_start) / CLOCKS_PER_SEC;
 
-            start = clock();
             // 3. Weighting step // 
+            step_start = clock();
             weightingStep.applyWeights(transformedPoints, target.getPoints(), transformedNormals, target.getNormals(), 
                                        sourceSelection.getColors(), target.getColors(), matches);
 
-            m_timeMeasure->weighingTime += double(clock() - start) / CLOCKS_PER_SEC;
-            start = clock();
+            m_timeMeasure->weighingTime += double(clock() - step_start) / CLOCKS_PER_SEC;
+            
             // 4. Rejection step //
+            step_start = clock();
             if (rejectionMethod == 1)
                 pruneCorrespondences(transformedNormals, target.getNormals(), matches);
-            m_timeMeasure->rejectionTime += double(clock() - start) / CLOCKS_PER_SEC;
+            m_timeMeasure->rejectionTime += double(clock() - step_start) / CLOCKS_PER_SEC;
 
-            clock_t end = clock();
-            double elapsedSecs = double(end - begin) / CLOCKS_PER_SEC;
-            std::cout << "Completed in " << elapsedSecs << " seconds." << std::endl;
-            //TODO : Check if this measurement point is correct
-            m_timeMeasure->convergenceTime += double(end - begin) / CLOCKS_PER_SEC;
-
+            // 5. Select error metric //
             std::vector<Vector3f> sourcePoints;
             std::vector<Vector3f> targetPoints;
             std::vector<Vector3f> sourceNormals;
             std::vector<Vector3f> targetNormals;
-
+            
+            step_start = clock();
             // Add all matches to the sourcePoints and targetPoints vector,
             // so that the sourcePoints[i] matches targetPoints[i]. For every source point,
             // the matches vector holds the index of the matching target point.
@@ -455,7 +494,10 @@ public:
                 estimatedPose = estimatePoseSymmetricICP(sourcePoints, targetPoints, sourceNormals, targetNormals) * estimatedPose;
             }
 
-            std::cout << "Optimization iteration done." << std::endl;
+            iter_time = double(clock() - step_start) / CLOCKS_PER_SEC;
+            m_timeMeasure->solverTime += iter_time; 
+
+            std::cout << "Optimization iteration done (in " << iter_time << "s)"  << std::endl;
 
             // RMSE compute
             if (calculateRMSE) {
@@ -465,10 +507,15 @@ public:
 
         // Store result
         initialPose = estimatedPose;
+
+        // Measure the whole actual time //
+        m_timeMeasure->convergenceTime += double(clock() - start) / CLOCKS_PER_SEC;
     }
 
 private:
     Matrix4f estimatePosePointToPoint(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, bool calculateRMSE = true) {
+        std::cout << "Preparing Point-to-Point ICP Linear" << std::endl;
+        
         ProcrustesAligner procrustAligner;
         Matrix4f estimatedPose = procrustAligner.estimatePose(sourcePoints, targetPoints);
 
@@ -476,6 +523,8 @@ private:
     }
 
     Matrix4f estimatePosePointToPlane(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals) {
+        std::cout << "Preparing Point-to-Plane ICP Linear" << std::endl;
+        
         const unsigned nPoints = sourcePoints.size();
 
         // Build the system
@@ -576,14 +625,10 @@ private:
         return estimatedPose;
     }
 
-    Matrix4f estimatePoseColorICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals) {
-        Matrix4f estimatedPose = Matrix4f::Identity();
-    
-        return estimatedPose;
-    }
-
     Matrix4f estimatePoseSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, 
             const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals) {
+        
+        std::cout << "Preparing Point-to-Plane ICP Linear" << std::endl;
         const unsigned nPoints = sourcePoints.size();
 
         // Build the system
@@ -660,19 +705,18 @@ private:
         Vector3f a = a_tilde / tan_theta;
         //std::cout << "a length " << a.norm() <<  "tan_theta" << tan_theta << "\n";
 
-        // TODO compute angle theta; or its cos sin from a_tilde
+        // compute angle theta; or its cos sin from a_tilde
         // Sin, cos is positive or negative
         float sin_theta = tan_theta / std::sqrt(1.0 + tan_theta * tan_theta);
         float cos_theta = sin_theta / tan_theta; 
         //std::cout << "Cos theta: " << cos_theta << " - Sin theta: " << sin_theta << "\n";
         Vector3f t = t_tilde * cos_theta; // Look good
 
-        // TODO Fix this
         Matrix4f rodriguesMatrix =  Matrix4f::Identity();
         rodriguesMatrix.block(0, 0, 3, 3) = getRodriguesMatrix(a, sin_theta, cos_theta);
 
         Matrix4f estimatedPose = Matrix4f::Identity();
-        // TODO Verify
+        
         estimatedPose = gettranslationMatrix(meanTarget) * rodriguesMatrix * gettranslationMatrix(t) 
                 * rodriguesMatrix * gettranslationMatrix(-meanSource);
     

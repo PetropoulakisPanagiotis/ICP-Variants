@@ -13,7 +13,7 @@ class PointSelection {
     public:
         PointSelection(const PointCloud& source, unsigned int selectionMode=SELECT_ALL, float selectionProba=0.5f)
             : m_source {source} {
-            std::cout << "Point selection with mode " << selectionMode << std::endl;
+            //std::cout << "Point selection with mode " << selectionMode << std::endl;
             numPoints = source.getPoints().size();
             m_selectionMode = selectionMode;
             m_selectionProba = selectionProba;
@@ -99,6 +99,6 @@ class PointSelection {
                     numSelectedPoints++;
                 }
             }
-            std::cout << "\tNumber points samples " << m_points.size() << "\n";
+            std::cout << "Number points samples " << m_points.size() << "\n";
         }
 };
