@@ -43,7 +43,9 @@ icp-variants/CMakeSettings.json
 .DS_Store
 .vscode/
 
-Data/stairs
+Data/eth
+Data/tum
+Data/kaist
 Data/apartment
 Data/apartment_global.txt
 Data/pose_scanner_leica.csv
