@@ -18,6 +18,9 @@
 #include "weighting.h"
 #include "ConvergenceMeasure.h"
 
+#define MULTI_RESOLUTION_MINIMUM_POINTS 100 // 1-> enable 
+
+
 /**
  * ICP optimizer - Abstract Base Class
  */
@@ -90,7 +93,7 @@ public:
     }
     
     void printICPConfiguration(){
-        std::cout << "\n*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*\n";
+        std::cout << "\n\n*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*\n";
         std::cout << "Starting ICP with the following configuration:\n";
 
         if(colorICP)
@@ -122,6 +125,13 @@ public:
             std::cout << "4. Rejection: angle of normals\n";
         else
             std::cout << "4. Rejection: keep all\n";
+        
+        if (metric == 0) 
+            std::cout << "5. Metric: Point to Point\n";
+        else if (metric == 1) 
+            std::cout << "5. Metric: Point to Plane\n";
+        else if (metric == 2) 
+            std::cout << "5. Metric: Symmetric\n";
         std::cout << "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*\n\n";
     }
 
@@ -189,7 +199,7 @@ public:
             // Lowest resolution should have at least 300 points //
             while(1){
                 originalSize = originalSize / 2;
-                if(originalSize < 250)
+                if(originalSize < MULTI_RESOLUTION_MINIMUM_POINTS)
                     break;
                 currentResolution *= 2;
             } // End while
@@ -296,7 +306,7 @@ public:
             estimatedPose = PoseIncrement<double>::convertToMatrix(poseIncrement) * estimatedPose;
             poseIncrement.setZero();
 
-            std::cout << "Optimization iteration done (in " << iter_time << "s)"  << std::endl;
+            std::cout << "Optimization iteration done (in " << iter_time << "s)"  << std::endl << std::endl;
             
             // RMSE compute
             if (calculateRMSE) {
@@ -307,7 +317,7 @@ public:
             if(multiResolutionICP){
                
                 // Reached max resolution and max iterations //
-                if(currentResolution == 1 && i >= m_nIterations)
+                if(currentResolution == 1 && i >= m_nIterations - 1)
                     break;
 
                 // Reached max resolution but not max iterations                //
@@ -474,7 +484,7 @@ public:
             // Lowest resolution should have at least 300 points //
             while(1){
                 originalSize = originalSize / 2;
-                if(originalSize < 250)
+                if(originalSize < MULTI_RESOLUTION_MINIMUM_POINTS)
                     break;
                 currentResolution *= 2;
             } // End while
@@ -577,7 +587,7 @@ public:
             iter_time = double(clock() - step_start) / CLOCKS_PER_SEC;
             m_timeMeasure->solverTime += iter_time; 
 
-            std::cout << "Optimization iteration done (in " << iter_time << "s)"  << std::endl;
+            std::cout << "Optimization iteration done (in " << iter_time << "s)"  << std::endl << std::endl;
 
             // RMSE compute
             if (calculateRMSE) {
@@ -588,7 +598,7 @@ public:
             if(multiResolutionICP){
 
                 // Reached max resolution and max iterations //
-                if(currentResolution == 1 && i >= m_nIterations)
+                if(currentResolution == 1 && i >= m_nIterations - 1)
                     break;
 
                 // Reached max resolution but not max iterations                //
