@@ -90,6 +90,7 @@ public:
     }
     
     void printICPConfiguration(){
+        std::cout << "\n*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*\n";
         std::cout << "Starting ICP with the following configuration:\n";
 
         if(colorICP)
@@ -121,6 +122,7 @@ public:
             std::cout << "4. Rejection: angle of normals\n";
         else
             std::cout << "4. Rejection: keep all\n";
+        std::cout << "*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*\n\n";
     }
 
     virtual void estimatePose(const PointCloud& source, const PointCloud& target, Matrix4f& initialPose, bool calculateRMSE = true) = 0;
@@ -463,8 +465,29 @@ public:
         
         start = clock();
 
+        int currentResolution = 1; 
+        int originalSize = source.getPoints().size();
+        if(this->multiResolutionICP){
+            // Find the lowest resolution                        //
+            // e.g. step 1 -> 32, step 2 -> 16, step 3 -> 4      //
+            // step 4 -> 2, step 5 -> 1 (aka original size)      //
+            // Lowest resolution should have at least 300 points //
+            while(1){
+                originalSize = originalSize / 2;
+                if(originalSize < 250)
+                    break;
+                currentResolution *= 2;
+            } // End while
+        }
+        
         // Initialize selection step //
-        auto sourceSelection = PointSelection(source, selectionMethod, proba);
+        PointSelection sourceSelection;
+        if(this->multiResolutionICP){
+            PointCloud coarseCloud = source.getCoarseResolution(currentResolution);
+            sourceSelection = PointSelection(coarseCloud, selectionMethod, proba);
+        }
+        else
+            sourceSelection = PointSelection(source, selectionMethod, proba);
 
         // Initialize weightingStep step //
         auto weightingStep = WeightingMethod(this->weightingMethod, this->maxDistance);
@@ -479,7 +502,10 @@ public:
         // The initial estimate can be given as an argument.
         Matrix4f estimatedPose = initialPose;
 
-        for (int i = 0; i < m_nIterations; ++i) {
+        for (int i = 0; i < m_nIterations || this->multiResolutionICP; ++i) {
+
+            if(this->multiResolutionICP)
+                std::cout << "Current resolution: " << currentResolution << std::endl;
 
             // 1. Selection step //
             step_start = clock();
@@ -556,6 +582,28 @@ public:
             // RMSE compute
             if (calculateRMSE) {
                 m_convergenceMeasure->recordAlignmentError(estimatedPose);
+            }
+
+            // Increase resolution //
+            if(multiResolutionICP){
+
+                // Reached max resolution and max iterations //
+                if(currentResolution == 1 && i >= m_nIterations)
+                    break;
+
+                // Reached max resolution but not max iterations                //
+                // Continue - especially for small sets we need this condition  //
+                // In the original paper they stop when resolution == 1         //
+                // For bunny, we can not reduce a lot the resolution and hence, //
+                // we perfom less than 5 ICP steps without this condition and   // 
+                // we have not found a descent pose                             // 
+                if(currentResolution == 1)
+                    continue;
+
+                currentResolution /= 2;
+
+                PointCloud coarseCloud = source.getCoarseResolution(currentResolution);
+                sourceSelection = PointSelection(coarseCloud, selectionMethod, proba);
             }
         }
 
