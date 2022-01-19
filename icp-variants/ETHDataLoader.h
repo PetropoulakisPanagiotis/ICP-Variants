@@ -10,13 +10,22 @@
 
 class ETHDataLoader : public DataLoader {
 public:
-	ETHDataLoader(const std::string& filename = "apartment") :
+	ETHDataLoader(const std::string& filename = "eth/apartment_local.csv") :
 		fileName(filename)
 	{
 		// CSVWriter is not our work!
 		// source: https://thispointer.com/how-to-read-data-from-a-csv-file-in-c/
         // Create an object of CSVWriter
-		CSVReader reader("../../Data/" + fileName + "_local.csv");
+
+		dataName = filename;
+		dataName.erase(dataName.find_last_not_of(".csv") + 1);
+		dataName.erase(dataName.find_last_not_of("_local") + 1);
+		dataName.erase(dataName.find_last_not_of("_global") + 1);
+
+		std::cout << fileName << " " << dataName << std::endl;
+
+
+		CSVReader reader("../../Data/" + filename);
 
 		// Get the data from CSV File
 		poseList = reader.getData();
@@ -52,7 +61,7 @@ public:
 		// Load the correct source cloud
 		std::cout << "Starting data loader for source point cloud" << std::endl;
 		
-        const std::string filenameSource = std::string("../../Data/" + fileName + "/" + vec[1]);
+        const std::string filenameSource = std::string("../../Data/" + dataName + "/" + vec[1]);
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_source(new pcl::PointCloud<pcl::PointXYZ>);
 		if (pcl::io::loadPCDFile<pcl::PointXYZ>(filenameSource, *cloud_source) == -1) {
 			PCL_ERROR(std::string("Couldn't read source point cloud for " + fileName + " data").c_str());
@@ -70,7 +79,7 @@ public:
 		// Load the correct target point cloud
 		std::cout << "Starting data loader for target point cloud" << std::endl;
 
-        const std::string filenameTarget = std::string("../../Data/" + fileName + "/" + vec[2]);
+        const std::string filenameTarget = std::string("../../Data/" + dataName + "/" + vec[2]);
         
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_target(new pcl::PointCloud<pcl::PointXYZ>);
         if (pcl::io::loadPCDFile<pcl::PointXYZ>(filenameTarget, *cloud_target) == -1) {
@@ -92,4 +101,5 @@ public:
 private:
 	std::vector<std::vector<std::string>> poseList;
 	std::string fileName;
+	std::string dataName;
 };
