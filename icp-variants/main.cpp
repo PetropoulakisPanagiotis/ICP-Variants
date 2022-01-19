@@ -332,7 +332,8 @@ int alignETH() {
 		optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
 
 	// Create the dataloader
-	ETHDataLoader eth_data_loader("apartment");
+	std::string fileName = "kaist/urban05_global.csv";
+	ETHDataLoader eth_data_loader(fileName);
 	
     double min_error = std::numeric_limits<double>::max();
 	int index_min_error = -1;
