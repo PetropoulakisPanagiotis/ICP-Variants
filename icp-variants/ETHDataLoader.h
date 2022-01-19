@@ -29,16 +29,18 @@ public:
 
 		// Get the data from CSV File
 		poseList = reader.getData();
+
+
 	}
 
 	int getLength() {
-		return 3000;
+		return poseList.size();
 	}
 
 	Sample getItem(int index) {
 		
-        if (index >= 3000) {
-			throw std::runtime_error("index out of range, only 3000 samples available");
+        if (index >= getLength()) {
+			throw std::runtime_error(std::string("index " + std::to_string(index) + " out of range, only " + std::to_string(getLength()) + " samples available").c_str());
 		}
 
 		Sample data; // Clouds + pose 
