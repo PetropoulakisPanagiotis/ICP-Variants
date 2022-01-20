@@ -340,7 +340,7 @@ int alignETH() {
 	double min_relative_error = 1;
 	int index_min_relative_error = -1;
 
-	for (int index = 0; index < 20; index++) {
+	for (int index = 0; index < eth_data_loader.getLength(); index++) {
 		// Load the source and target mesh
 		Sample input = eth_data_loader.getItem(index);
 

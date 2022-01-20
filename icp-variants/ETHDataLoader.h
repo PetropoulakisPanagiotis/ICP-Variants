@@ -34,7 +34,7 @@ public:
 	}
 
 	int getLength() {
-		return poseList.size();
+		return poseList.size() - 1;
 	}
 
 	Sample getItem(int index) {
