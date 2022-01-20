@@ -354,14 +354,15 @@ int alignETH() {
     }
 
 	// Create the dataloader
-	ETHDataLoader eth_data_loader{};
+	std::string fileName = "kaist/urban05_global.csv";
+	ETHDataLoader eth_data_loader(fileName);
 	
     double min_error = std::numeric_limits<double>::max();
 	int index_min_error = -1;
 	double min_relative_error = 1;
 	int index_min_relative_error = -1;
 
-	for (int index = 0; index < 20; index++) {
+	for (int index = 0; index < eth_data_loader.getLength(); index++) {
 		// Load the source and target mesh
 		Sample input = eth_data_loader.getItem(index);
 
