@@ -25,6 +25,8 @@
 
 #define USE_LINEAR_ICP		0 // 0 -> non-linear optimization. 1 -> linear
 
+#define USE_MULTI_RESOLUTION 1 // 1-> enable 
+
 // Set metric - Enable only one //
 #define USE_POINT_TO_PLANE	0  
 #define USE_POINT_TO_POINT	1 
