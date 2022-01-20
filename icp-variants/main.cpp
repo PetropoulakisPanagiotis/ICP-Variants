@@ -322,15 +322,15 @@ int alignETH() {
     // 6. Set objective // 
     if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
-		optimizer->setNbOfIterations(20);
+		optimizer->setNbOfIterations(100);
 	}
     else if (USE_SYMMETRIC) {
 		optimizer->setMetric(2);
-		optimizer->setNbOfIterations(20);
+		optimizer->setNbOfIterations(100);
 	}
 	else if (USE_POINT_TO_POINT){
 		optimizer->setMetric(0);
-		optimizer->setNbOfIterations(20);
+		optimizer->setNbOfIterations(100);
 	}
 
 	// 2. Set selection method //
@@ -359,8 +359,10 @@ int alignETH() {
 	
     double min_error = std::numeric_limits<double>::max();
 	int index_min_error = -1;
-	//double min_relative_error = 1;
-	//int index_min_relative_error = -1;
+	double min_relative_error = 1;
+	int index_min_relative_error = -1;
+
+	std::vector<float> errorsFinalIteration;
 
 	for (int index = 0; index < eth_data_loader.getLength(); index++) {
 		// Load the source and target mesh
@@ -371,7 +373,6 @@ int alignETH() {
 		
         // Apply initial transform to source point cloud
 		input.source.change_pose(input.pose);
-		//double initial_error = ConvergenceMeasure::calculate_error(original_source.getPclPointCloud(), input.source.getPclPointCloud());
 		
 		// Create a Convergence Measure
 		auto convergenMearsure = ConvergenceMeasure(input.source.getPoints(), original_source.getPoints(), true);
@@ -385,21 +386,22 @@ int alignETH() {
 		std::cout << "num points source:" << input.source.getPoints().size() << std::endl;
 		std::cout << "num points target:" << input.target.getPoints().size() << std::endl;
 		
+
+		double initial_error = convergenMearsure.benchmarkError(estimatedPose);
         // Apply ICP //
         optimizer->estimatePose(input.source, input.target, estimatedPose, true);
         
         // Calculate time
 		timeMeasure.calculateIterationTime();
 		
-        // std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
-		// std::cout << "true pose:\n" << input.pose << std::endl;
 		
         // Calculate error after ICP //
 		//input.source.change_pose(estimatedPose);
 		double final_error = convergenMearsure.getFinalErrorBenchmark();
+		errorsFinalIteration.push_back(final_error);
 		
-        //std::cout << "initial error:" << initial_error << std::endl;
-		//std::cout << "final error:" << final_error << std::endl;
+        std::cout << "initial error:" << initial_error << std::endl;
+		std::cout << "final error:" << final_error << std::endl;
 
 
 		// Print out RMSE and benchmark errors of each iteration
@@ -421,10 +423,22 @@ int alignETH() {
 			index_min_error = index;
 			min_error = final_error;
 		}
+		if (final_error / initial_error < min_relative_error) {
+			index_min_relative_error = index;
+			min_relative_error = final_error / initial_error;
+		}
 	}
 
 	std::cout << "The minimum error is " << min_error << " for index " << index_min_error << std::endl;
-	//std::cout << "The minimum relative error is " << min_relative_error << " for index " << index_min_relative_error << std::endl;
+	std::cout << "The minimum relative error is " << min_relative_error << " for index " << index_min_relative_error << std::endl;
+
+	std::ofstream newFile;
+	newFile.open("benchmark_error_kaist_urban05_global.txt");
+
+	for (unsigned int i = 0; i < errorsFinalIteration.size(); i++) {
+		newFile << errorsFinalIteration[i] << std::endl;
+	}
+	newFile.close();
 
 	delete optimizer;
 
