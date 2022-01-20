@@ -23,20 +23,20 @@
 #define SELECTION_METHOD    1 // 0 -> all, 1 -> random
 #define WEIGHTING_METHOD    2 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
 
-#define USE_LINEAR_ICP		1 // 0 -> non-linear optimization. 1 -> linear
+#define USE_LINEAR_ICP		0 // 0 -> non-linear optimization. 1 -> linear
 
 // Set metric - Enable only one //
 #define USE_POINT_TO_PLANE	0  
-#define USE_POINT_TO_POINT	0 
-#define USE_SYMMETRIC	    1
+#define USE_POINT_TO_POINT	1 
+#define USE_SYMMETRIC	    0
 
 // Add color to knn             //
 // Works with all error metrics // 
 #define USE_COLOR_ICP       0 // Enable sequence icp, else it is not used
 
-#define RUN_SHAPE_ICP		1 // 0 -> disable. 1 -> enable. Can all be set to 1.
+#define RUN_SHAPE_ICP		0 // 0 -> disable. 1 -> enable. Can all be set to 1.
 #define RUN_SEQUENCE_ICP    0
-#define RUN_ETH_ICP		    0
+#define RUN_ETH_ICP		    1
 
 int alignBunnyWithICP() {
 	// Load the source and target mesh.
@@ -168,7 +168,7 @@ int alignBunnyWithICP() {
 	std::cout << "Resulting mesh written." << std::endl;
 
     // saving iteration errors to file //
-    convergenMearsure.writeToFile("RMSE.txt");
+    convergenMearsure.writeRMSEToFile("RMSE.txt");
 
 	delete optimizer;
 
@@ -359,8 +359,8 @@ int alignETH() {
 	
     double min_error = std::numeric_limits<double>::max();
 	int index_min_error = -1;
-	double min_relative_error = 1;
-	int index_min_relative_error = -1;
+	//double min_relative_error = 1;
+	//int index_min_relative_error = -1;
 
 	for (int index = 0; index < eth_data_loader.getLength(); index++) {
 		// Load the source and target mesh
@@ -371,8 +371,12 @@ int alignETH() {
 		
         // Apply initial transform to source point cloud
 		input.source.change_pose(input.pose);
-		double initial_error = ConvergenceMeasure::calculate_error(original_source.getPclPointCloud(), input.source.getPclPointCloud());
+		//double initial_error = ConvergenceMeasure::calculate_error(original_source.getPclPointCloud(), input.source.getPclPointCloud());
 		
+		// Create a Convergence Measure
+		auto convergenMearsure = ConvergenceMeasure(input.source.getPoints(), original_source.getPoints(), true);
+		optimizer->setConvergenceMeasure(convergenMearsure);
+
         // Create a Time Profiler
 		auto timeMeasure = TimeMeasure();
 		optimizer->setTimeMeasure(timeMeasure);
@@ -382,7 +386,7 @@ int alignETH() {
 		std::cout << "num points target:" << input.target.getPoints().size() << std::endl;
 		
         // Apply ICP //
-        optimizer->estimatePose(input.source, input.target, estimatedPose, false);
+        optimizer->estimatePose(input.source, input.target, estimatedPose, true);
         
         // Calculate time
 		timeMeasure.calculateIterationTime();
@@ -391,11 +395,19 @@ int alignETH() {
 		// std::cout << "true pose:\n" << input.pose << std::endl;
 		
         // Calculate error after ICP //
-		input.source.change_pose(estimatedPose);
-		double final_error = ConvergenceMeasure::calculate_error(original_source.getPclPointCloud(), input.source.getPclPointCloud());
+		//input.source.change_pose(estimatedPose);
+		double final_error = convergenMearsure.getFinalErrorBenchmark();
 		
-        std::cout << "initial error:" << initial_error << std::endl;
-		std::cout << "final error:" << final_error << std::endl;
+        //std::cout << "initial error:" << initial_error << std::endl;
+		//std::cout << "final error:" << final_error << std::endl;
+
+
+		// Print out RMSE and benchmark errors of each iteration
+		convergenMearsure.outputAlignmentError();
+
+		// saving iteration errors to file //
+		convergenMearsure.writeRMSEToFile("RMSE" + std::to_string(index)+ ".txt");
+		convergenMearsure.writeBenchmarkToFile("Benchmark" + std::to_string(index) + ".txt");
 
 		// This code can be used to save the point clouds to disk
 		//original_source.writeToFile("original_source.ply");
@@ -409,14 +421,10 @@ int alignETH() {
 			index_min_error = index;
 			min_error = final_error;
 		}
-		if (final_error / initial_error < min_relative_error) {
-			index_min_relative_error = index;
-			min_relative_error = final_error / initial_error;
-		}
 	}
 
 	std::cout << "The minimum error is " << min_error << " for index " << index_min_error << std::endl;
-	std::cout << "The minimum relative error is " << min_relative_error << " for index " << index_min_relative_error << std::endl;
+	//std::cout << "The minimum relative error is " << min_relative_error << " for index " << index_min_relative_error << std::endl;
 
 	delete optimizer;
 
