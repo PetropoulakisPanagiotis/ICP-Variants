@@ -11,6 +11,9 @@ typedef std::mt19937 MyRNG;  // the Mersenne Twister with a popular choice of pa
 
 class PointSelection {
     public:
+        PointSelection(){
+        }
+
         PointSelection(const PointCloud& source, unsigned int selectionMode=SELECT_ALL, float selectionProba=0.5f)
             : m_source {source} {
             //std::cout << "Point selection with mode " << selectionMode << std::endl;
