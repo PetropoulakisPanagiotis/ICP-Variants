@@ -20,12 +20,12 @@
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
 #define MATCHING_METHOD      0 // 1 -> projective, 0 -> knn. Run projective with sequence_icp 
-#define SELECTION_METHOD     0 // 0 -> all, 1 -> random
-#define WEIGHTING_METHOD     2 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
+#define SELECTION_METHOD     1 // 0 -> all, 1 -> random
+#define WEIGHTING_METHOD     0 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
 
 #define USE_LINEAR_ICP		0 // 0 -> non-linear optimization. 1 -> linear
 
-#define USE_MULTI_RESOLUTION 1 // 1-> enable 
+#define USE_MULTI_RESOLUTION 0 // 1-> enable 
 
 // Set metric - Enable only one //
 #define USE_POINT_TO_PLANE	0  
@@ -329,7 +329,7 @@ int alignETH() {
 
     // 1. Matching always knn //
     optimizer->setMatchingMethod(0);
-	optimizer->setMatchingMaxDistance(1);
+	optimizer->setMatchingMaxDistance(1000);
 
     // 6. Set objective // 
     if (USE_POINT_TO_PLANE) {
@@ -347,7 +347,7 @@ int alignETH() {
 
 	// 2. Set selection method //
 	if (SELECTION_METHOD)
-		optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.05);
+		optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.01);
 	else
 		optimizer->setSelectionMethod(SELECT_ALL);
 
@@ -366,7 +366,7 @@ int alignETH() {
     }
 
 	// Create the dataloader
-	std::string fileName = "kaist/urban05_global.csv";
+	std::string fileName = "eth/plain_global.csv";
 	ETHDataLoader eth_data_loader(fileName);
 	
     double min_error = std::numeric_limits<double>::max();
