@@ -1,7 +1,17 @@
 # ICP-Variants
+Implementation and Analysis of various ICP variants
 
-## Methods
-![Screenshot](images/ICP_overview.png)
+
+| Step  | Available Methods          | 
+| --------------  | ----------       | 
+| 1. Selection    | All & Random       | 
+| 2. Matching     | k-NN & Projective    |
+| 3. Weighting    | Constant & Point distances & Normals compatibility & Colors compatibility |
+| 4. Rejection    | Normals angle        |
+| 5. Metric       | Point-to-Point & Point-to-Plane & Symmetric ICP |
+| 6. Minimization | Linear & Non-Linear (Levenberg-Marquardt) Optimiztion |
+
+<b>Extra variants: Multi-Resolution ICP & Color ICP (6-dim k-NN)</b>
 
 ## Datasets
 Apart from the bunny toy point cloud, we use [RGB-D SLAM ](https://vision.in.tum.de/data/datasets/rgbd-dataset) dataset (freiburg_xyz sequence) for debugging and [ETH  point cloud registration](https://projects.asl.ethz.ch/datasets/doku.php?id=laserregistration:laserregistration) dataset (Apartment) for benchmark.
