@@ -47,3 +47,12 @@ To use the ground truth, we need the matching csv file in addition to the .pcd f
 
 :zap: <em>Equal contribution</em>
 
+##### Αcknowledgements
+Prof. Dr. Angela Dai @ 3D AI Lab <br />
+Prof. Dr. Matthias Nießner @ Visual Computing Lab <br /> 
+Dr. Justus Thies <br /> 
+Teaching Assistants: M. Sc. Andrei Burov, M. Sc. YuchenRao <br /> 
+Department of Informatics <br />
+Technical University of Munich (TUM) <br />
+3D AI Lab: https://www.3dunderstanding.org/ <br />
+Visual Computing & Artificial Intelligence Lab: http://niessnerlab.org/
