@@ -234,6 +234,7 @@ public:
         poseIncrement.setZero();
 
         for (int i = 0; i < m_nIterations || this->multiResolutionICP; ++i) {
+            std::cout << std::endl << "--- Running iteration " << i << std::endl;
             
             if(this->multiResolutionICP)
                 std::cout << "Current resolution: " << currentResolution << std::endl;
@@ -306,7 +307,7 @@ public:
             estimatedPose = PoseIncrement<double>::convertToMatrix(poseIncrement) * estimatedPose;
             poseIncrement.setZero();
 
-            std::cout << "Optimization iteration done (in " << iter_time << "s)"  << std::endl << std::endl;
+            std::cout << "Optimization iteration done (in " << iter_time << "s)"  << std::endl;
             
             // RMSE compute
             if (calculateRMSE) {
@@ -513,6 +514,7 @@ public:
         Matrix4f estimatedPose = initialPose;
 
         for (int i = 0; i < m_nIterations || this->multiResolutionICP; ++i) {
+            std::cout << std::endl << "--- Running iteration " << i << std::endl;
 
             if(this->multiResolutionICP)
                 std::cout << "Current resolution: " << currentResolution << std::endl;
@@ -587,7 +589,7 @@ public:
             iter_time = double(clock() - step_start) / CLOCKS_PER_SEC;
             m_timeMeasure->solverTime += iter_time; 
 
-            std::cout << "Optimization iteration done (in " << iter_time << "s)"  << std::endl << std::endl;
+            std::cout << "Optimization iteration done (in " << iter_time << "s)"  << std::endl;
 
             // RMSE compute
             if (calculateRMSE) {

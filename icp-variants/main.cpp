@@ -329,7 +329,7 @@ int alignETH() {
 
     // 1. Matching always knn //
     optimizer->setMatchingMethod(0);
-	optimizer->setMatchingMaxDistance(1000);
+	optimizer->setMatchingMaxDistance(10);
 
     // 6. Set objective // 
     if (USE_POINT_TO_PLANE) {
@@ -365,8 +365,12 @@ int alignETH() {
         optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
     }
 
+	if(USE_MULTI_RESOLUTION)
+        optimizer->enableMultiResolution(true);
+
 	// Create the dataloader
-	std::string fileName = "eth/plain_global.csv";
+	// std::string fileName = "eth/plain_global.csv"; 
+	std::string fileName = "apartment_global.csv";
 	ETHDataLoader eth_data_loader(fileName);
 	
     double min_error = std::numeric_limits<double>::max();
@@ -377,6 +381,7 @@ int alignETH() {
 	std::vector<float> errorsFinalIteration;
 
 	for (int index = 0; index < eth_data_loader.getLength(); index++) {
+		std::cout << "\n----Processing index: " << index << "\n";
 		// Load the source and target mesh
 		Sample input = eth_data_loader.getItem(index);
 
@@ -385,6 +390,12 @@ int alignETH() {
 		
         // Apply initial transform to source point cloud
 		input.source.change_pose(input.pose);
+		// Caculate distance between source and tartget centroids after transform
+		auto meanSourceTf = computeMean(input.source.getPoints());
+		auto meanSource = computeMean(original_source.getPoints());
+		auto meanTarget = computeMean(input.target.getPoints());
+		std::cout << "Distance between mean source transform vs target: " << (meanSourceTf - meanTarget).norm() << "\n";
+		std::cout << "Distance between mean source transform vs original: " << (meanSourceTf - meanSource).norm() << "\n";
 		
 		// Create a Convergence Measure
 		auto convergenMearsure = ConvergenceMeasure(input.source.getPoints(), original_source.getPoints(), true);
@@ -400,6 +411,10 @@ int alignETH() {
 		
 
 		double initial_error = convergenMearsure.benchmarkError(estimatedPose);
+		auto initial_rmse = convergenMearsure.rmseAlignmentError(estimatedPose);
+        std::cout << "Initial error:" << initial_error << std::endl;
+        std::cout << "Initial RMSE:" << initial_rmse << std::endl;
+
         // Apply ICP //
         optimizer->estimatePose(input.source, input.target, estimatedPose, true);
         
@@ -414,6 +429,9 @@ int alignETH() {
 		
         std::cout << "initial error:" << initial_error << std::endl;
 		std::cout << "final error:" << final_error << std::endl;
+
+        std::cout << "Initial RMSE:" << initial_rmse << std::endl;
+        std::cout << "Final RMSE:" << convergenMearsure.rmseAlignmentError(estimatedPose) << std::endl;
 
 
 		// Print out RMSE and benchmark errors of each iteration
@@ -445,7 +463,7 @@ int alignETH() {
 	std::cout << "The minimum relative error is " << min_relative_error << " for index " << index_min_relative_error << std::endl;
 
 	std::ofstream newFile;
-	newFile.open("benchmark_error_kaist_urban05_global.txt");
+	newFile.open("benchmark_error.txt"); // TODO Rename
 
 	for (unsigned int i = 0; i < errorsFinalIteration.size(); i++) {
 		newFile << errorsFinalIteration[i] << std::endl;
