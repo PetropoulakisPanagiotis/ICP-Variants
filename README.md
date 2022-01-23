@@ -14,11 +14,11 @@ Implementation and Analysis of various ICP variants
 <b>Extra variants: Multi-Resolution ICP & Color ICP (6-dim k-NN)</b>
 
 ## Requirements 
-* [Eigen-3.3](https://eigen.tuxfamily.org/index.php?title=Main_Page) - linear algebra (vectors, solvers, etc)
-* [Flann-1.8.4](https://github.com/flann-lib/flann) - k-nn search
+* [Eigen-3.3](https://eigen.tuxfamily.org/index.php?title=Main_Page) - Linear Algebra (vectors, solvers, etc)
+* [Flann-1.8.4](https://github.com/flann-lib/flann) - k-NN search
 * [glog-0.3.1](https://github.com/google/glog) 
-* [Ceres-2](http://ceres-solver.org/) - non-linear optimization 
-* [PCL-1.3](https://pointclouds.org/) - point cloud processing 
+* [Ceres-2](http://ceres-solver.org/) - Non-linear optimization 
+* [PCL-1.3](https://pointclouds.org/) - Point cloud processing 
 * C++14 
 * CMake
 
