@@ -13,6 +13,16 @@ Implementation and Analysis of various ICP variants
 
 <b>Extra variants: Multi-Resolution ICP & Color ICP (6-dim k-NN)</b>
 
+## Requirements 
+* [Eigen-3.3](https://eigen.tuxfamily.org/index.php?title=Main_Page)
+* [Flann-1.8.4](https://github.com/flann-lib/flann)
+* [glog-0.3.1](https://github.com/google/glog)
+* [Ceres-2](http://ceres-solver.org/)
+* [PCL-1.3](https://pointclouds.org/)
+* C++14 
+* CMake
+
+
 ## Datasets
 Apart from the bunny toy point cloud, we use [RGB-D SLAM ](https://vision.in.tum.de/data/datasets/rgbd-dataset) dataset (freiburg_xyz sequence) for debugging and [ETH  point cloud registration](https://projects.asl.ethz.ch/datasets/doku.php?id=laserregistration:laserregistration) dataset (Apartment) for benchmark.
 
