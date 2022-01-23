@@ -20,25 +20,25 @@
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
 #define MATCHING_METHOD      0 // 1 -> projective, 0 -> knn. Run projective with sequence_icp 
-#define SELECTION_METHOD     0 // 0 -> all, 1 -> random
-#define WEIGHTING_METHOD     2 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
+#define SELECTION_METHOD     1 // 0 -> all, 1 -> random
+#define WEIGHTING_METHOD     0 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
 
-#define USE_LINEAR_ICP		 0 // 0 -> non-linear optimization. 1 -> linear
+#define USE_LINEAR_ICP		0 // 0 -> non-linear optimization. 1 -> linear
 
-#define USE_MULTI_RESOLUTION 1 // 1-> enable 
+#define USE_MULTI_RESOLUTION 0 // 1-> enable 
 
 // Set metric - Enable only one //
-#define USE_POINT_TO_PLANE	 0  
-#define USE_POINT_TO_POINT	 0 
-#define USE_SYMMETRIC	     1
+#define USE_POINT_TO_PLANE	0  
+#define USE_POINT_TO_POINT	1 
+#define USE_SYMMETRIC	    0
 
 // Add color to knn             //
 // Works with all error metrics // 
 #define USE_COLOR_ICP        0 // Enable sequence icp, else it is not used
 
-#define RUN_SHAPE_ICP		 1 // 0 -> disable. 1 -> enable. Can all be set to 1.
-#define RUN_SEQUENCE_ICP     0
-#define RUN_ETH_ICP		     0
+#define RUN_SHAPE_ICP		0 // 0 -> disable. 1 -> enable. Can all be set to 1.
+#define RUN_SEQUENCE_ICP    0
+#define RUN_ETH_ICP		    1
 
 int alignBunnyWithICP() {
 	// Load the source and target mesh.
@@ -173,7 +173,7 @@ int alignBunnyWithICP() {
 	std::cout << "Resulting mesh written." << std::endl;
 
     // saving iteration errors to file //
-    convergenMearsure.writeToFile("RMSE.txt");
+    convergenMearsure.writeRMSEToFile("RMSE.txt");
 
 	delete optimizer;
 
@@ -329,25 +329,25 @@ int alignETH() {
 
     // 1. Matching always knn //
     optimizer->setMatchingMethod(0);
-	optimizer->setMatchingMaxDistance(1);
+	optimizer->setMatchingMaxDistance(10);
 
     // 6. Set objective // 
     if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
-		optimizer->setNbOfIterations(20);
+		optimizer->setNbOfIterations(100);
 	}
     else if (USE_SYMMETRIC) {
 		optimizer->setMetric(2);
-		optimizer->setNbOfIterations(20);
+		optimizer->setNbOfIterations(100);
 	}
 	else if (USE_POINT_TO_POINT){
 		optimizer->setMetric(0);
-		optimizer->setNbOfIterations(20);
+		optimizer->setNbOfIterations(100);
 	}
 
 	// 2. Set selection method //
 	if (SELECTION_METHOD)
-		optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.05);
+		optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.01);
 	else
 		optimizer->setSelectionMethod(SELECT_ALL);
 
@@ -365,8 +365,12 @@ int alignETH() {
         optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
     }
 
+	if(USE_MULTI_RESOLUTION)
+        optimizer->enableMultiResolution(true);
+
 	// Create the dataloader
-	std::string fileName = "kaist/urban05_global.csv";
+	// std::string fileName = "eth/plain_global.csv"; 
+	std::string fileName = "apartment_global.csv";
 	ETHDataLoader eth_data_loader(fileName);
 	
     double min_error = std::numeric_limits<double>::max();
@@ -374,7 +378,10 @@ int alignETH() {
 	double min_relative_error = 1;
 	int index_min_relative_error = -1;
 
+	std::vector<float> errorsFinalIteration;
+
 	for (int index = 0; index < eth_data_loader.getLength(); index++) {
+		std::cout << "\n----Processing index: " << index << "\n";
 		// Load the source and target mesh
 		Sample input = eth_data_loader.getItem(index);
 
@@ -383,8 +390,17 @@ int alignETH() {
 		
         // Apply initial transform to source point cloud
 		input.source.change_pose(input.pose);
-		double initial_error = ConvergenceMeasure::calculate_error(original_source.getPclPointCloud(), input.source.getPclPointCloud());
+		// Caculate distance between source and tartget centroids after transform
+		auto meanSourceTf = computeMean(input.source.getPoints());
+		auto meanSource = computeMean(original_source.getPoints());
+		auto meanTarget = computeMean(input.target.getPoints());
+		std::cout << "Distance between mean source transform vs target: " << (meanSourceTf - meanTarget).norm() << "\n";
+		std::cout << "Distance between mean source transform vs original: " << (meanSourceTf - meanSource).norm() << "\n";
 		
+		// Create a Convergence Measure
+		auto convergenMearsure = ConvergenceMeasure(input.source.getPoints(), original_source.getPoints(), true);
+		optimizer->setConvergenceMeasure(convergenMearsure);
+
         // Create a Time Profiler
 		auto timeMeasure = TimeMeasure();
 		optimizer->setTimeMeasure(timeMeasure);
@@ -393,21 +409,37 @@ int alignETH() {
 		std::cout << "num points source:" << input.source.getPoints().size() << std::endl;
 		std::cout << "num points target:" << input.target.getPoints().size() << std::endl;
 		
+
+		double initial_error = convergenMearsure.benchmarkError(estimatedPose);
+		auto initial_rmse = convergenMearsure.rmseAlignmentError(estimatedPose);
+        std::cout << "Initial error:" << initial_error << std::endl;
+        std::cout << "Initial RMSE:" << initial_rmse << std::endl;
+
         // Apply ICP //
-        optimizer->estimatePose(input.source, input.target, estimatedPose, false);
+        optimizer->estimatePose(input.source, input.target, estimatedPose, true);
         
         // Calculate time
 		timeMeasure.calculateIterationTime();
 		
-        // std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
-		// std::cout << "true pose:\n" << input.pose << std::endl;
 		
         // Calculate error after ICP //
-		input.source.change_pose(estimatedPose);
-		double final_error = ConvergenceMeasure::calculate_error(original_source.getPclPointCloud(), input.source.getPclPointCloud());
+		//input.source.change_pose(estimatedPose);
+		double final_error = convergenMearsure.getFinalErrorBenchmark();
+		errorsFinalIteration.push_back(final_error);
 		
         std::cout << "initial error:" << initial_error << std::endl;
 		std::cout << "final error:" << final_error << std::endl;
+
+        std::cout << "Initial RMSE:" << initial_rmse << std::endl;
+        std::cout << "Final RMSE:" << convergenMearsure.rmseAlignmentError(estimatedPose) << std::endl;
+
+
+		// Print out RMSE and benchmark errors of each iteration
+		convergenMearsure.outputAlignmentError();
+
+		// saving iteration errors to file //
+		convergenMearsure.writeRMSEToFile("RMSE" + std::to_string(index)+ ".txt");
+		convergenMearsure.writeBenchmarkToFile("Benchmark" + std::to_string(index) + ".txt");
 
 		// This code can be used to save the point clouds to disk
 		//original_source.writeToFile("original_source.ply");
@@ -429,6 +461,14 @@ int alignETH() {
 
 	std::cout << "The minimum error is " << min_error << " for index " << index_min_error << std::endl;
 	std::cout << "The minimum relative error is " << min_relative_error << " for index " << index_min_relative_error << std::endl;
+
+	std::ofstream newFile;
+	newFile.open("benchmark_error.txt"); // TODO Rename
+
+	for (unsigned int i = 0; i < errorsFinalIteration.size(); i++) {
+		newFile << errorsFinalIteration[i] << std::endl;
+	}
+	newFile.close();
 
 	delete optimizer;
 
