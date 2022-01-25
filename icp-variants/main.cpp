@@ -23,13 +23,13 @@
 #define SELECTION_METHOD     1 // 0 -> all, 1 -> random
 #define WEIGHTING_METHOD     0 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
 
-#define USE_LINEAR_ICP		0 // 0 -> non-linear optimization. 1 -> linear
+#define USE_LINEAR_ICP		1 // 0 -> non-linear optimization. 1 -> linear
 
 #define USE_MULTI_RESOLUTION 0 // 1-> enable 
 
 // Set metric - Enable only one //
-#define USE_POINT_TO_PLANE	0  
-#define USE_POINT_TO_POINT	1 
+#define USE_POINT_TO_PLANE	1 
+#define USE_POINT_TO_POINT	0 
 #define USE_SYMMETRIC	    0
 
 // Add color to knn             //
@@ -37,8 +37,8 @@
 #define USE_COLOR_ICP        0 // Enable sequence icp, else it is not used
 
 #define RUN_SHAPE_ICP		0 // 0 -> disable. 1 -> enable. Can all be set to 1.
-#define RUN_SEQUENCE_ICP    0
-#define RUN_ETH_ICP		    1
+#define RUN_SEQUENCE_ICP    1
+#define RUN_ETH_ICP		    0
 
 int alignBunnyWithICP() {
 	// Load the source and target mesh.
@@ -186,7 +186,7 @@ int reconstructRoom() {
 
 	// Load video
 	std::cout << "Initialize virtual sensor..." << std::endl;
-	VirtualSensor sensor;
+	VirtualSensor sensor = VirtualSensor(10); // Increase step
 	if (!sensor.init(filenameIn)) {
 		std::cout << "Failed to initialize the sensor!\nCheck file path!" << std::endl;
 		return -1;
@@ -202,6 +202,8 @@ int reconstructRoom() {
         keepOriginalSize = true;
 
 	PointCloud target{ sensor.getDepth(), sensor.getColorRGBX(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), keepOriginalSize};
+	Matrix4f targetTrajectory = sensor.getTrajectory();
+	// std::cout << "Target trajectory:\n" << targetTrajectory << "\n";
 
     // Setup the optimizer.
 	ICPOptimizer* optimizer = nullptr;
@@ -217,7 +219,7 @@ int reconstructRoom() {
     // 6. Set objective //
     if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
-		optimizer->setNbOfIterations(10);
+		optimizer->setNbOfIterations(20);
 	}
     else if (USE_SYMMETRIC) {
 		optimizer->setMetric(2);
@@ -272,8 +274,13 @@ int reconstructRoom() {
 	Matrix4f currentCameraToWorld = Matrix4f::Identity();
 	estimatedPoses.push_back(currentCameraToWorld.inverse());
 
+	// Save target
+	if (saveRoomToFile(sensor, currentCameraToWorld.inverse(), filenameBaseOut) == -1)
+				return -1;
+
+	// std::vector<float> errorsFinalIteration;
 	int i = 0;
-	const int iMax = 50; //50
+	const int iMax = 10; //50
 	while (sensor.processNextFrame() && i <= iMax) {
         float* depthMap = sensor.getDepth();
 		Matrix3f depthIntrinsics = sensor.getDepthIntrinsics();
@@ -287,27 +294,39 @@ int reconstructRoom() {
 		else
             source = PointCloud(sensor.getDepth(), sensor.getColorRGBX(),sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), false, 8 );
         
+		// TODO Get transform from current to frame 0 coordinate as ground truth
+		Matrix4f trajectoryInv = sensor.getTrajectory().inverse(); // Inverse to world coordinate
+		Matrix4f currentToZeroCoordinates = targetTrajectory * trajectoryInv;
+		auto gtTargetPoints = transformPoints(source.getPoints(), currentToZeroCoordinates);
+		std::cout << "Ground Truth current trajectory to target trajectory transform:\n" << currentToZeroCoordinates << "\n";
+
+		// Covergence Measure RMSE with ground truth correspondences
+		auto convergenMearsure = ConvergenceMeasure(source.getPoints(), gtTargetPoints, false);
+		optimizer->setConvergenceMeasure(convergenMearsure);
+		auto initial_rmse = convergenMearsure.rmseAlignmentError(currentCameraToWorld);
+
         // Apply ICP //        
-        optimizer->estimatePose(source, target, currentCameraToWorld, false);
+        optimizer->estimatePose(source, target, currentCameraToWorld, true);
+        // ICP Finished //        
+
+		std::cout << "Initial RMSE:" << initial_rmse << std::endl;
+        std::cout << "Final RMSE:" << convergenMearsure.rmseAlignmentError(currentCameraToWorld) << std::endl;
+
+		// Print out RMSE and benchmark errors of each iteration
+		convergenMearsure.outputAlignmentError();
+
+		// saving iteration errors to file //
+		convergenMearsure.writeRMSEToFile("RMSE" + std::to_string(i)+ ".txt");
 		
         // Invert the transformation matrix to get the current camera pose.
 		Matrix4f currentCameraPose = currentCameraToWorld.inverse();
 		std::cout << "Current camera pose: " << std::endl << currentCameraPose << std::endl;
 		estimatedPoses.push_back(currentCameraPose);
 
-		if (i % 5 == 0) {
+		if (i % 1 == 0) {
 			// We write out the mesh to file for debugging.
-			SimpleMesh currentDepthMesh{ sensor, currentCameraPose, 0.1f };
-			SimpleMesh currentCameraMesh = SimpleMesh::camera(currentCameraPose, 0.0015f);
-			SimpleMesh resultingMesh = SimpleMesh::joinMeshes(currentDepthMesh, currentCameraMesh, Matrix4f::Identity());
-
-			std::stringstream ss;
-			ss << filenameBaseOut << sensor.getCurrentFrameCnt() << ".off";
-			std::cout << filenameBaseOut << sensor.getCurrentFrameCnt() << ".off" << std::endl;
-			if (!resultingMesh.writeMesh(ss.str())) {
-				std::cout << "Failed to write mesh!\nCheck file path!" << std::endl;
+			if (saveRoomToFile(sensor, currentCameraPose, filenameBaseOut) == -1)
 				return -1;
-			}
 		}
 		
 		i++;
