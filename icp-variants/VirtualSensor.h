@@ -15,6 +15,7 @@ class VirtualSensor {
 public:
 
 	VirtualSensor() : m_currentIdx(-1), m_increment(1) { }
+	VirtualSensor(int increment=1) : m_currentIdx(-1), m_increment(increment) { }
 
 	~VirtualSensor() {
 		SAFE_DELETE_ARRAY(m_depthFrame);
