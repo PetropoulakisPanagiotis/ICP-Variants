@@ -449,7 +449,7 @@ private:
 
                 problem.AddResidualBlock(
                     new ceres::AutoDiffCostFunction<SymmetricConstraint, 1, 6>(
-                        new SymmetricConstraint(sourcePoint, targetPoint, sourceNormal, targetNormal)
+                        new SymmetricConstraint(sourcePoint, targetPoint, sourceNormal, targetNormal, match.weight)
                         ),
                     nullptr, poseIncrement.getData()
                 );

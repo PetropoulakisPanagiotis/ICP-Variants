@@ -94,11 +94,12 @@ protected:
 
 class SymmetricConstraint{
 public:
-    SymmetricConstraint(const Vector3f& sourcePoint, const Vector3f& targetPoint, const Vector3f& sourceNormal, const Vector3f& targetNormal) :
+    SymmetricConstraint(const Vector3f& sourcePoint, const Vector3f& targetPoint, const Vector3f& sourceNormal, const Vector3f& targetNormal, const float weight) :
         m_sourcePoint{ sourcePoint },
         m_targetPoint{ targetPoint },
         m_sourceNormal{ sourceNormal },
-        m_targetNormal{ targetNormal }
+        m_targetNormal{ targetNormal },
+        m_weight{ weight }
     { }
 
     template <typename T>
@@ -121,14 +122,14 @@ public:
         T y_component = ((T)this->m_targetNormal[1] + (T)this->m_sourceNormal[1]) * (m_sourcePointTransformed[1] - m_targetPointTransformed[1]);
         T z_component = ((T)this->m_targetNormal[2] + (T)this->m_sourceNormal[2]) * (m_sourcePointTransformed[2] - m_targetPointTransformed[2]);
 
-        residuals[0] = (T)this->LAMBDA * (x_component + y_component + z_component);
+        residuals[0] = (T)this->LAMBDA * (T)this->m_weight * (x_component + y_component + z_component);
 
         return true;
     }
 
-    static ceres::CostFunction* create(const Vector3f& sourcePoint, const Vector3f& targetPoint, const Vector3f& sourceNormal, const Vector3f& targetNormal) {
+    static ceres::CostFunction* create(const Vector3f& sourcePoint, const Vector3f& targetPoint, const Vector3f& sourceNormal, const Vector3f& targetNormal, const float weight) {
         return new ceres::AutoDiffCostFunction<SymmetricConstraint, 1, 6>(
-            new SymmetricConstraint(sourcePoint, targetPoint, sourceNormal, targetNormal)
+            new SymmetricConstraint(sourcePoint, targetPoint, sourceNormal, targetNormal, weight)
             );
     }
 
@@ -137,6 +138,7 @@ protected:
     const Vector3f m_targetPoint;
     const Vector3f m_sourceNormal;
     const Vector3f m_targetNormal;
+    const float m_weight;
     const float LAMBDA = 1.0f;
 };
 
