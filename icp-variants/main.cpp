@@ -21,7 +21,7 @@
 
 #define MATCHING_METHOD      0 // 1 -> projective, 0 -> knn. Run projective with sequence_icp 
 #define SELECTION_METHOD     1 // 0 -> all, 1 -> random
-#define WEIGHTING_METHOD     0 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
+#define WEIGHTING_METHOD     1 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
 
 #define USE_LINEAR_ICP		1 // 0 -> non-linear optimization. 1 -> linear
 
