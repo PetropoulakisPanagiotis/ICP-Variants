@@ -320,6 +320,28 @@ public:
         return idx;
     }
 
+    // Get a coarse resolution from the current pointcloud                //
+    // Current object must contain all the points - even the invalid ones //
+    PointCloud getCoarseResolution(int downsampleFactor) const{
+        PointCloud coarsePointCloud;
+
+        int nPoints  = this->m_points.size();
+
+        coarsePointCloud.m_points.reserve(std::floor(float(nPoints) / downsampleFactor));
+        coarsePointCloud.m_normals.reserve(std::floor(float(nPoints) / downsampleFactor));
+        coarsePointCloud.m_colors.reserve(std::floor(float(nPoints) / downsampleFactor));
+
+        for (int i = 0; i < nPoints; i = i + downsampleFactor){
+            if (this->m_points[i].allFinite() && this->m_normals[i].allFinite()) {
+                coarsePointCloud.m_points.push_back(this->m_points[i]);
+                coarsePointCloud.m_normals.push_back(this->m_normals[i]);
+                coarsePointCloud.m_colors.push_back(this->m_colors[i]);
+            }
+        } // End for
+
+        return coarsePointCloud;
+    }
+
 private:
     std::vector<Vector3f> m_points;
     std::vector<Vector3f> m_normals;

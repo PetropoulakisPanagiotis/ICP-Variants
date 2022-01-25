@@ -174,3 +174,20 @@ Matrix3f getRodriguesMatrix(const Vector3f& axis, const float& sin_theta, const 
     matrix += sin_theta * K + (1 - cos_theta) * K * K;
     return matrix;
 }
+
+// Save to file
+int saveRoomToFile(VirtualSensor& sensor, const Matrix4f& currentCameraPose, const std::string& filenameBaseOut) {
+    // We write out the mesh to file for debugging.
+    SimpleMesh currentDepthMesh{ sensor, currentCameraPose, 0.1f };
+    SimpleMesh currentCameraMesh = SimpleMesh::camera(currentCameraPose, 0.0015f);
+    SimpleMesh resultingMesh = SimpleMesh::joinMeshes(currentDepthMesh, currentCameraMesh, Matrix4f::Identity());
+
+    std::stringstream ss;
+    ss << filenameBaseOut << sensor.getCurrentFrameCnt() << ".off";
+    std::cout << filenameBaseOut << sensor.getCurrentFrameCnt() << ".off" << std::endl;
+    if (!resultingMesh.writeMesh(ss.str())) {
+        std::cout << "Failed to write mesh!\nCheck file path!" << std::endl;
+        return -1;
+    }
+    return 0;
+}

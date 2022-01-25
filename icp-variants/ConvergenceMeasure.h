@@ -16,23 +16,27 @@ class ConvergenceMeasure
 {
 private:
     /* data */
-    std::vector<Vector3f> m_sourceCorrespondences;
-    std::vector<Vector3f> m_targetCorrespondences;
-    std::vector<float> iterationErrors;
+    std::vector<Vector3f> m_sourcePoints;
+    std::vector<Vector3f> m_unchangedPoints;
+    std::vector<float> iterationErrorsRMSE;
+    std::vector<float> iterationErrorsBenchmark;
     int numCorrspondeces;
+    bool m_runBenchmark;
 
 public:
     ConvergenceMeasure() {
         numCorrspondeces = 0;
+        m_runBenchmark = false;
     };
 
-    ConvergenceMeasure(const std::vector<Vector3f>& sourceCorrespondences, const std::vector<Vector3f>& targetCorrespondences) 
+    ConvergenceMeasure(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& unchangedPoints, const bool runBenchmark = false) 
     {       
-        ASSERT(sourceCorrespondences.size() == targetCorrespondences.size() &&  sourceCorrespondences.size() > 0
-                && "The number of source and target correspondences must be the same and > 0.");
-        m_sourceCorrespondences = sourceCorrespondences;
-        m_targetCorrespondences = targetCorrespondences;
-        numCorrspondeces = m_sourceCorrespondences.size();
+        ASSERT(sourcePoints.size() == unchangedPoints.size() &&  sourcePoints.size() > 0
+                && "The number of points must be the same and > 0.");
+        m_sourcePoints = sourcePoints;
+        m_unchangedPoints = unchangedPoints;
+        numCorrspondeces = m_sourcePoints.size();
+        m_runBenchmark = runBenchmark;
     };
 
     ~ConvergenceMeasure() {};
@@ -47,10 +51,10 @@ public:
         ASSERT(numCorrspondeces > 0
                 && "The number of correspondences must be > 0.");
         float rmse = 0.0;
-        auto transformedPoints = transformPoints(m_sourceCorrespondences, pose);
+        auto transformedPoints = transformPoints(m_sourcePoints, pose);
         for (int i=0; i < numCorrspondeces; ++i) {
             // Compute error
-            rmse += (transformedPoints[i] - m_targetCorrespondences[i]).squaredNorm();
+            rmse += (transformedPoints[i] - m_unchangedPoints[i]).squaredNorm();
         }
         rmse /= numCorrspondeces;
         return std::sqrt(rmse);
@@ -60,23 +64,68 @@ public:
     void recordAlignmentError(const Matrix4f& pose) {
         float rmse_err = rmseAlignmentError(pose);
         std::cout << "RMSE Alignment errors: " << rmse_err << "\n";
-        iterationErrors.push_back(rmse_err);
+        iterationErrorsRMSE.push_back(rmse_err);
+        if (m_runBenchmark) {
+            float benchmark_err = benchmarkError(pose);
+            std::cout << "Benchmark errors: " << benchmark_err << "\n";
+            iterationErrorsBenchmark.push_back(benchmark_err);
+        }
     };
 
     /* Print Alignment Errors*/
     void outputAlignmentError() {
-        if (iterationErrors.size() == 0) {
+        if (iterationErrorsRMSE.size() == 0) {
             std::cout << "No recorded alignment error.\n";
             return;
         }
         std::cout << "Recorded RMSE Alginment Error!\n";
         std::cout << "\tIter \t RMSE Error\n";
-        for (int i=0; i< iterationErrors.size(); i++) {
-            printf ("\t%02d \t %01.6f\n", i, iterationErrors[i]);
+        for (int i=0; i< iterationErrorsRMSE.size(); i++) {
+            printf ("\t%02d \t %01.6f\n", i, iterationErrorsRMSE[i]);
+        }
+        if (m_runBenchmark) {
+            if (iterationErrorsBenchmark.size() == 0) {
+                std::cout << "No recorded alignment error for benchmark.\n";
+                return;
+            }
+            std::cout << "Recorded benchmark Alginment Error!\n";
+            std::cout << "\tIter \t Benchmark Error\n";
+            for (int i = 0; i < iterationErrorsBenchmark.size(); i++) {
+                printf("\t%02d \t %01.6f\n", i, iterationErrorsBenchmark[i]);
+            }
         }
     };
-  
-    static double calculate_error(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud1, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud2) {
+    
+    double benchmarkError(const Matrix4f& pose) {
+        ASSERT(numCorrspondeces > 0
+            && "The number of points must be > 0.");
+
+        auto transformedPoints = transformPoints(m_sourcePoints, pose);
+
+        pcl::PointCloud<pcl::PointXYZ> pcl_sourcePoints;
+        pcl_sourcePoints.width = 1;
+        pcl_sourcePoints.height = transformedPoints.size();
+        pcl_sourcePoints.points.resize(transformedPoints.size());
+        for (int i = 0; i < transformedPoints.size(); i++)
+        {
+            pcl_sourcePoints.points[i].x = transformedPoints[i].x();
+            pcl_sourcePoints.points[i].y = transformedPoints[i].y();
+            pcl_sourcePoints.points[i].z = transformedPoints[i].z();
+        }
+        pcl::PointCloud<pcl::PointXYZ> pcl_unchangedPoints;
+        pcl_unchangedPoints.width = 1;
+        pcl_unchangedPoints.height = m_unchangedPoints.size();
+        pcl_unchangedPoints.points.resize(m_unchangedPoints.size());
+        for (int i = 0; i < m_unchangedPoints.size(); i++)
+        {
+            pcl_unchangedPoints.points[i].x = m_unchangedPoints[i].x();
+            pcl_unchangedPoints.points[i].y = m_unchangedPoints[i].y();
+            pcl_unchangedPoints.points[i].z = m_unchangedPoints[i].z();
+        }
+        return calculate_error(pcl_sourcePoints.makeShared(), pcl_unchangedPoints.makeShared());
+    };
+
+    double calculate_error(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud1, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud2) {
         assert(cloud1->size() == cloud2->size());
         
         double error = 0;
@@ -96,15 +145,35 @@ public:
         return error;
     };
 
-    void writeToFile(std::string nameFile){
+    void writeRMSEToFile(std::string nameFile){
         std::ofstream newFile;
 
         newFile.open(nameFile);
 
-        for(unsigned int i = 0; i < this->iterationErrors.size(); i++){
-            newFile << iterationErrors[i] << std::endl;
+        for(unsigned int i = 0; i < this->iterationErrorsRMSE.size(); i++){
+            newFile << iterationErrorsRMSE[i] << std::endl;
         }
 
         newFile.close();
+    }
+
+    void writeBenchmarkToFile(std::string nameFile) {
+        std::ofstream newFile;
+
+        newFile.open(nameFile);
+
+        for (unsigned int i = 0; i < this->iterationErrorsBenchmark.size(); i++) {
+            newFile << iterationErrorsBenchmark[i] << std::endl;
+        }
+
+        newFile.close();
+    }
+
+    float getFinalErrorRMSE() {
+        return iterationErrorsRMSE.back();
+    }
+
+    float getFinalErrorBenchmark() {
+        return iterationErrorsBenchmark.back();
     }
 };
