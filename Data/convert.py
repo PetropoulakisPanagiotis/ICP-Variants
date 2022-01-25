@@ -15,11 +15,7 @@ for file in os.listdir(path):
 
 	if file.endswith('.txt'):
 
-		# print(file_path)
-
 		csv_name = file_path.replace('\\', '/').rstrip('.txt') + '.csv'
-
-		# print(csv_name)
 
 		with open(file_path, 'r') as data:
 			plaintext = data.read()
