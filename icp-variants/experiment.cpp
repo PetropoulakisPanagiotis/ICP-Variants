@@ -21,8 +21,11 @@
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
 int alignBunnyWithICP(unsigned useLinear, unsigned useMetric, unsigned matchingMethod, unsigned selectionMethod, unsigned weightingMethod, 
-unsigned useMultiresolution, unsigned numIterations=20, float maxMatchingDist=0.01f, float samplingProba=0.5f) {
+		unsigned useMultiresolution, unsigned numIterations=20, float maxMatchingDist=0.01f, float samplingProba=0.5f, std::string expName="bunny") {
     // ASSERT arguments
+	printf("Running Bunny ICP with useLinear %d, useMetric %d, matchingMethod %d, selectionMethod %d, weightingMethod %d, useMultiresolution %d, numIterations %d, maxMatchingDist %f, samplingProba %f, expName %s.\n", 
+			useLinear , useMetric , matchingMethod , selectionMethod , weightingMethod , useMultiresolution , numIterations , maxMatchingDist, samplingProba, expName.c_str());
+	// ASSERT(useLinear < 2 &&  useMetric < 3 && matchingMethod < 2  && selectionMethod < 2  && weightingMethod < 4  && useMultiresolution < 2  && "Config unsupported.");
 
 	// Load the source and target mesh.
 	BunnyDataLoader bunny_data_loader{};
@@ -98,11 +101,11 @@ unsigned useMultiresolution, unsigned numIterations=20, float maxMatchingDist=0.
 
 	std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
 
-	// input.source.writeToFile("bunny_source.ply");
-	// input.target.writeToFile("bunny_target.ply");
+	input.source.writeToFile(expName + "_bunny_source.ply");
+	input.target.writeToFile(expName + "_bunny_target.ply");
 	PointCloud transformed_source = input.source.copy_point_cloud();
 	transformed_source.change_pose(estimatedPose);
-	// transformed_source.writeToFile("bunny_final_source.ply");
+	transformed_source.writeToFile(expName + "_bunny_final_source.ply");
   
 	// Print out RMSE errors of each iteration
 	convergenMearsure.outputAlignmentError();
@@ -127,11 +130,11 @@ unsigned useMultiresolution, unsigned numIterations=20, float maxMatchingDist=0.
 	}
 
     // std::string outFile = "bunny_icp_" + std::to_string(useLinear) + std::to_string(useMetric) + ".off";
-	resultingMesh.writeMesh(std::string("bunny_icp.off"));
+	resultingMesh.writeMesh(expName + std::string("_bunny_icp.off"));
 	std::cout << "Resulting mesh written." << std::endl;
 
     // saving iteration errors to file //
-    convergenMearsure.writeRMSEToFile(std::string("RMSE.txt"));
+    convergenMearsure.writeRMSEToFile(expName + std::string("_RMSE.txt"));
 
 	delete optimizer;
 
@@ -139,9 +142,14 @@ unsigned useMultiresolution, unsigned numIterations=20, float maxMatchingDist=0.
 }
 
 int reconstructRoom(unsigned useLinear, unsigned useMetric, unsigned matchingMethod, unsigned selectionMethod, unsigned weightingMethod, 
-        unsigned useMultiresolution, unsigned numIterations=20, float maxMatchingDist=0.01f, float samplingProba=0.5f) {
+        unsigned useMultiresolution, unsigned numIterations=20, float maxMatchingDist=0.01f, float samplingProba=0.5f, std::string expName="room") {
+	printf("Running Room ICP with useLinear %d, useMetric %d, matchingMethod %d, selectionMethod %d, weightingMethod %d, useMultiresolution %d, numIterations %d, maxMatchingDist %f, samplingProba %f, expName %s.\n", 
+			useLinear , useMetric , matchingMethod , selectionMethod , weightingMethod , useMultiresolution , numIterations , maxMatchingDist, samplingProba, expName.c_str());
+	// ASSERT arguments
+	// ASSERT(useLinear < 2 &&  useMetric <3 && matchingMethod <2  && selectionMethod < 2  && weightingMethod < 4  && useMultiresolution < 2  && samplingProba <= 1 && "Config not supported.");
+
 	std::string filenameIn = std::string("../../Data/rgbd_dataset_freiburg1_xyz/");
-	std::string filenameBaseOut = std::string("mesh_");
+	std::string filenameBaseOut = std::string(expName + "_mesh_");
 
 	// Load video
 	std::cout << "Initialize virtual sensor..." << std::endl;
@@ -245,14 +253,14 @@ int reconstructRoom(unsigned useLinear, unsigned useMetric, unsigned matchingMet
 		convergenMearsure.outputAlignmentError();
 
 		// saving iteration errors to file //
-		convergenMearsure.writeRMSEToFile("RMSE" + std::to_string(i)+ ".txt");
+		convergenMearsure.writeRMSEToFile(expName + "_RMSE" + std::to_string(i)+ ".txt");
 		
         // Invert the transformation matrix to get the current camera pose.
 		Matrix4f currentCameraPose = currentCameraToWorld.inverse();
 		std::cout << "Current camera pose: " << std::endl << currentCameraPose << std::endl;
 		estimatedPoses.push_back(currentCameraPose);
 
-		if (i % 1 == 0) {
+		if (i % 5 == 0) {
 			// We write out the mesh to file for debugging.
 			if (saveRoomToFile(sensor, currentCameraPose, filenameBaseOut) == -1)
 				return -1;
@@ -267,7 +275,11 @@ int reconstructRoom(unsigned useLinear, unsigned useMetric, unsigned matchingMet
 }
 
 int alignETH(unsigned useLinear, unsigned useMetric, unsigned matchingMethod, unsigned selectionMethod, unsigned weightingMethod, 
-        unsigned useMultiresolution, unsigned numIterations=20, float maxMatchingDist=0.1f, float samplingProba=0.01f) {
+        unsigned useMultiresolution, unsigned numIterations=20, float maxMatchingDist=0.1f, float samplingProba=0.01f, std::string expName="benchmark") {
+	printf("Running Benchmark ICP with useLinear %d, useMetric %d, matchingMethod %d, selectionMethod %d, weightingMethod %d, useMultiresolution %d, numIterations %d, maxMatchingDist %f, samplingProba %f, expName %s.\n", useLinear , useMetric , matchingMethod , selectionMethod , weightingMethod , useMultiresolution , numIterations , maxMatchingDist, samplingProba, expName.c_str());
+	// ASSERT arguments
+	// ASSERT(useLinear < 2 &&  useMetric <3 && matchingMethod <2  && selectionMethod < 2  && weightingMethod < 4  && useMultiresolution < 2  && samplingProba <= 1 && "Config not supported.");
+
 	ICPOptimizer* optimizer = nullptr;
 	// 5. Set minimization method //
     if (useLinear) 
@@ -363,8 +375,8 @@ int alignETH(unsigned useLinear, unsigned useMetric, unsigned matchingMethod, un
 		convergenMearsure.outputAlignmentError();
 
 		// saving iteration errors to file //
-		convergenMearsure.writeRMSEToFile("RMSE" + std::to_string(index)+ ".txt");
-		convergenMearsure.writeBenchmarkToFile("Benchmark" + std::to_string(index) + ".txt");
+		convergenMearsure.writeRMSEToFile(expName + "_RMSE" + std::to_string(index)+ ".txt");
+		convergenMearsure.writeBenchmarkToFile(expName + "_Benchmark" + std::to_string(index) + ".txt");
 
 		// This code can be used to save the point clouds to disk
 		//original_source.writeToFile("original_source.ply");
@@ -388,7 +400,7 @@ int alignETH(unsigned useLinear, unsigned useMetric, unsigned matchingMethod, un
 	std::cout << "The minimum relative error is " << min_relative_error << " for index " << index_min_relative_error << std::endl;
 
 	std::ofstream newFile;
-	newFile.open("benchmark_error.txt"); // TODO Rename
+	newFile.open(expName + "_benchmark_error.txt"); // TODO Rename
 
 	for (unsigned int i = 0; i < errorsFinalIteration.size(); i++) {
 		newFile << errorsFinalIteration[i] << std::endl;
@@ -406,27 +418,30 @@ int main() {
     std::string filename = "experiment.csv";
     CSVReader reader("../../Data/" + filename);
     auto configs = reader.getData();
-    for (auto cf: configs) {
+	// Ignore first line (header)
+    for (int configIdx=1; configIdx < configs.size(); configIdx++) {
+		auto cf = configs[configIdx];
         std::string expName = cf[0];
-        unsigned useLinear = atoi(cf[1].c_str());
-        unsigned useMetric = atoi(cf[2].c_str());
-        unsigned matchingMethod = atoi(cf[3].c_str());
-        unsigned selectionMethod = atoi(cf[4].c_str());
-        unsigned weightingMethod = atoi(cf[5].c_str());
-        unsigned useMultiresolution = atoi(cf[6].c_str());
-        unsigned numIterations = atoi(cf[7].c_str()); 
-        float maxMatchingDist = atof(cf[8].c_str());
-        float samplingProba = atof(cf[9].c_str());
+        std::string expType = cf[1];
+        unsigned useLinear = atoi(cf[2].c_str());
+        unsigned useMetric = atoi(cf[3].c_str());
+        unsigned matchingMethod = atoi(cf[4].c_str());
+        unsigned selectionMethod = atoi(cf[5].c_str());
+        unsigned weightingMethod = atoi(cf[6].c_str());
+        unsigned useMultiresolution = atoi(cf[7].c_str());
+        unsigned numIterations = atoi(cf[8].c_str()); 
+        float maxMatchingDist = atof(cf[9].c_str());
+        float samplingProba = atof(cf[10].c_str());
         std::cout << "\n*****Running experiment: " << expName << "\n";
-        if (expName == "bunny")
+        if (expType == "bunny")
             result += alignBunnyWithICP(useLinear, useMetric, matchingMethod, selectionMethod, 
-                    weightingMethod, useMultiresolution, numIterations, maxMatchingDist, samplingProba);
-        else if (expName == "room")
+                    weightingMethod, useMultiresolution, numIterations, maxMatchingDist, samplingProba, expName);
+        else if (expType == "room")
             result += reconstructRoom(useLinear, useMetric, matchingMethod, selectionMethod, 
-                    weightingMethod, useMultiresolution, numIterations, maxMatchingDist, samplingProba);
-        else if (expName == "eth")
+                    weightingMethod, useMultiresolution, numIterations, maxMatchingDist, samplingProba, expName);
+        else if (expType == "eth")
             result += alignETH(useLinear, useMetric, matchingMethod, selectionMethod, 
-                    weightingMethod, useMultiresolution, numIterations, maxMatchingDist, samplingProba);
+                    weightingMethod, useMultiresolution, numIterations, maxMatchingDist, samplingProba, expName);
     }
 
     std::cout << "Run total of " << result << " experiments! Finished!";

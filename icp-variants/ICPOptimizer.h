@@ -361,6 +361,7 @@ private:
         const unsigned nPoints = sourcePoints.size();
         
         std::cout << "Preparing Point-to-Point ICP Non-linear" << std::endl;
+        int numResidualBlock = 0;
 
         for (unsigned i = 0; i < nPoints; ++i) {
             const auto match = matches[i];
@@ -371,7 +372,7 @@ private:
                 if (!sourcePoint.allFinite() || !targetPoint.allFinite())
                     continue;
 
-                // TODO: Create a new point-to-point cost function and add it as constraint (i.e. residual block) 
+                // Create a new point-to-point cost function and add it as constraint (i.e. residual block) 
                 // to the Ceres problem.
 
                 problem.AddResidualBlock(
@@ -380,14 +381,18 @@ private:
                     ),
                     nullptr, poseIncrement.getData()
                 );
+                numResidualBlock++;
             }
         }
+
+        ASSERT(numResidualBlock > 0 && "ERROR: No residual block added!")
     }
 
     void prepareConstraintsPlaneICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
         const unsigned nPoints = sourcePoints.size();
 
         std::cout << "Preparing Point-to-Plane ICP Non-linear" << std::endl;
+        int numResidualBlock = 0;
         
         for (unsigned i = 0; i < nPoints; ++i) {
             const auto match = matches[i];
@@ -404,6 +409,7 @@ private:
                     ),
                     nullptr, poseIncrement.getData()
                 );
+                numResidualBlock++;
                 
                 const auto& targetNormal = targetNormals[match.idx];
 
@@ -416,15 +422,19 @@ private:
                     ),
                     nullptr, poseIncrement.getData()
                 );
+                numResidualBlock++;
 
             }
         }
+        ASSERT(numResidualBlock > 0 && "ERROR: No residual block added!")
+
     }
 
     void prepareConstraintsSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
         const unsigned nPoints = sourcePoints.size();
         
         std::cout << "Preparing Symmetric ICP Non-linear" << std::endl;
+        int numResidualBlock = 0;
         
         for (unsigned i = 0; i < nPoints; ++i) {
             const auto match = matches[i];
@@ -442,6 +452,7 @@ private:
                     ),
                     nullptr, poseIncrement.getData()
                 );
+                numResidualBlock++;
 
                 const auto& sourceNormal = sourceNormals[i];
                 const auto& targetNormal = targetNormals[match.idx];
@@ -455,8 +466,11 @@ private:
                         ),
                     nullptr, poseIncrement.getData()
                 );
+                numResidualBlock++;
             }
         }
+        ASSERT(numResidualBlock > 0 && "ERROR: No residual block added!")
+
     }
 };
 
@@ -631,6 +645,7 @@ public:
 private:
     Matrix4f estimatePosePointToPoint(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, bool calculateRMSE = true) {
         std::cout << "Preparing Point-to-Point ICP Linear" << std::endl;
+        ASSERT(sourcePoints.size() > 0  && targetPoints.size() > 0 && "ERROR: No point to compute linear square errors!")
         
         ProcrustesAligner procrustAligner;
         Matrix4f estimatedPose = procrustAligner.estimatePose(sourcePoints, targetPoints);
@@ -642,6 +657,7 @@ private:
         std::cout << "Preparing Point-to-Plane ICP Linear" << std::endl;
         
         const unsigned nPoints = sourcePoints.size();
+        ASSERT(sourcePoints.size() > 0  && targetPoints.size() > 0 && "ERROR: No point to compute linear square errors!")
 
         // Build the system
         MatrixXf A = MatrixXf::Zero(4 * nPoints, 6);
@@ -745,6 +761,7 @@ private:
             const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals) {
         
         std::cout << "Preparing Point-to-Plane ICP Linear" << std::endl;
+        ASSERT(sourcePoints.size() > 0  && targetPoints.size() > 0 && "ERROR: No point to compute linear square errors!")
         const unsigned nPoints = sourcePoints.size();
 
         // Build the system
@@ -761,7 +778,6 @@ private:
             const auto& d = targetPoints[i];
             const auto& n = targetNormals[i];
 
-            // FIXME Verify this
             Vector3f s_normalized = s - meanSource;
             Vector3f d_normalized = d - meanTarget;
 
