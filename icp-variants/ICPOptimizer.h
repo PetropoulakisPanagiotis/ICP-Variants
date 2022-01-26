@@ -36,6 +36,8 @@ public:
             m_nearestNeighborSearch = std::make_unique<NearestNeighborSearchProjective>();
     }
 
+    virtual ~ICPOptimizer() = default;
+
     void setMatchingMaxDistance(float maxDistance) {
         m_nearestNeighborSearch->setMatchingMaxDistance(maxDistance);
         this->maxDistance = maxDistance;
