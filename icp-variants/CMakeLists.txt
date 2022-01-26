@@ -87,12 +87,19 @@ set(SOURCE_FILES
 )
 
 link_directories(${FreeImage_LIBRARY_DIR})
+
 add_executable(icp_variants main.cpp ${HEADER_FILES} ${SOURCE_FILES})
 target_link_libraries(icp_variants ceres freeimage Eigen3::Eigen ${PCL_LIBRARIES})
 target_include_directories(icp_variants PUBLIC ${EIGEN3_INCLUDE_DIR}
     ${FreeImage_INCLUDE_DIR} ${Flann_INCLUDE_DIR})
 
+add_executable(experiments experiment.cpp ${HEADER_FILES} ${SOURCE_FILES})
+target_link_libraries(experiments ceres freeimage Eigen3::Eigen ${PCL_LIBRARIES})
+target_include_directories(experiments PUBLIC ${EIGEN3_INCLUDE_DIR}
+    ${FreeImage_INCLUDE_DIR} ${Flann_INCLUDE_DIR})
+
 # On Windows copy dll to executable folder
+# TODO Add epxeriments binary for Windows
 if(WIN32)
     # Visual Studio properties
     set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT icp_variants)
