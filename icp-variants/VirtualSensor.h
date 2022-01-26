@@ -100,6 +100,45 @@ public:
 		return true;
 	}
 
+	// Get frame by abitrary index
+	bool processFrameIndex(int frameIndex) {
+		m_currentIdx = frameIndex;
+
+		if ((unsigned int)m_currentIdx >= (unsigned int)m_filenameColorImages.size()) return false;
+
+		std::cout << "Process Frame with index [" << m_currentIdx << " | " << m_filenameColorImages.size() << "]" << std::endl;
+
+		FreeImageB rgbImage;
+		rgbImage.LoadImageFromFile(m_baseDir + m_filenameColorImages[m_currentIdx]);
+		memcpy(m_colorFrame, rgbImage.data, 4 * 640 * 480);
+
+		// depth images are scaled by 5000 (see https://vision.in.tum.de/data/datasets/rgbd-dataset/file_formats)
+		FreeImageU16F dImage;
+		dImage.LoadImageFromFile(m_baseDir + m_filenameDepthImages[m_currentIdx]);
+
+		for (unsigned int i = 0; i < m_depthImageWidth * m_depthImageHeight; ++i) {
+			if (dImage.data[i] == 0)
+				m_depthFrame[i] = MINF;
+			else
+				m_depthFrame[i] = dImage.data[i] * 1.0f / 5000.0f;
+		}
+
+		// find transformation (simple nearest neighbor, linear search)
+		double timestamp = m_depthImagesTimeStamps[m_currentIdx];
+		double min = std::numeric_limits<double>::max();
+		int idx = 0;
+		for (unsigned int i = 0; i < m_trajectory.size(); ++i) {
+			double d = abs(m_trajectoryTimeStamps[i] - timestamp);
+			if (min > d) {
+				min = d;
+				idx = i;
+			}
+		}
+		m_currentTrajectory = m_trajectory[idx];
+
+		return true;
+	} 
+
 	unsigned int getCurrentFrameCnt() {
 		return (unsigned int)m_currentIdx;
 	}
