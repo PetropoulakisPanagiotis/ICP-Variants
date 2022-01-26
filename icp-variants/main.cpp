@@ -186,14 +186,16 @@ int reconstructRoom() {
 
 	// Load video
 	std::cout << "Initialize virtual sensor..." << std::endl;
-	VirtualSensor sensor = VirtualSensor(10); // Increase step
+	int frameStep = 10;
+	VirtualSensor sensor = VirtualSensor(frameStep); // Increase step
 	if (!sensor.init(filenameIn)) {
 		std::cout << "Failed to initialize the sensor!\nCheck file path!" << std::endl;
 		return -1;
 	}
 
 	// We store a first frame as a reference frame. All next frames are tracked relatively to the first frame.
-	sensor.processNextFrame();
+	// sensor.processNextFrame();
+	sensor.processFrameIndex(0);
 
     // For projective search keep the whole target point cloud //
     // even the invalid points                                 //
@@ -281,7 +283,8 @@ int reconstructRoom() {
 	// std::vector<float> errorsFinalIteration;
 	int i = 0;
 	const int iMax = 10; //50
-	while (sensor.processNextFrame() && i <= iMax) {
+	// while (sensor.processNextFrame() && i <= iMax) {
+	while (sensor.processFrameIndex((i + 1) * frameStep) && i <= iMax) {
         float* depthMap = sensor.getDepth();
 		Matrix3f depthIntrinsics = sensor.getDepthIntrinsics();
 		Matrix4f depthExtrinsics = sensor.getDepthExtrinsics();
