@@ -20,16 +20,16 @@
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
 #define MATCHING_METHOD      0 // 1 -> projective, 0 -> knn. Run projective with sequence_icp 
-#define SELECTION_METHOD     1 // 0 -> all, 1 -> random
-#define WEIGHTING_METHOD     1 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
+#define SELECTION_METHOD     0 // 0 -> all, 1 -> random
+#define WEIGHTING_METHOD     0 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
 
 #define USE_LINEAR_ICP		0 // 0 -> non-linear optimization. 1 -> linear
 
-#define USE_MULTI_RESOLUTION 0 // 1-> enable 
+#define USE_MULTI_RESOLUTION 1 // 1-> enable 
 
 // Set metric - Enable only one //
-#define USE_POINT_TO_PLANE	1 
-#define USE_POINT_TO_POINT	0 
+#define USE_POINT_TO_PLANE	0 
+#define USE_POINT_TO_POINT	1 
 #define USE_SYMMETRIC	    0
 
 // Add color to knn             //
@@ -219,15 +219,15 @@ int reconstructRoom() {
     // 6. Set objective //
     if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
-		optimizer->setNbOfIterations(20);
+		optimizer->setNbOfIterations(35);
 	}
     else if (USE_SYMMETRIC) {
 		optimizer->setMetric(2);
-		optimizer->setNbOfIterations(20);
+		optimizer->setNbOfIterations(35);
 	}
 	else if(USE_POINT_TO_POINT){
 		optimizer->setMetric(0);
-		optimizer->setNbOfIterations(20);
+		optimizer->setNbOfIterations(35);
 	}
 
     // 1. Set matching step //
@@ -280,7 +280,7 @@ int reconstructRoom() {
 
 	// std::vector<float> errorsFinalIteration;
 	int i = 0;
-	const int iMax = 10; //50
+	const int iMax = 0; //50
 	while (sensor.processNextFrame() && i <= iMax) {
         float* depthMap = sensor.getDepth();
 		Matrix3f depthIntrinsics = sensor.getDepthIntrinsics();

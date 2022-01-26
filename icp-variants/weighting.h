@@ -22,7 +22,6 @@ class WeightingMethod{
         float calculateNormalsWeight(const Vector3f& sourceNormal, const Vector3f& targetNormal){
             
             return sourceNormal.dot(targetNormal);
-
         }
 
         float calculateColorsWeight(const Vector4uc& sourceColor, const Vector4uc& targetColor){
@@ -44,7 +43,7 @@ class WeightingMethod{
 
             if(method == CONSTANT_WEIGHTING)
                 return;
-        
+            
             unsigned int nPoints = matches.size();
 
             for(unsigned int i = 0; i < nPoints; i++){
