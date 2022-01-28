@@ -297,7 +297,7 @@ int reconstructRoom() {
 		else
             source = PointCloud(sensor.getDepth(), sensor.getColorRGBX(),sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), false, 8 );
         
-		// TODO Get transform from current to frame 0 coordinate as ground truth
+		// Get transform from current to frame 0 coordinate as ground truth
 		Matrix4f trajectoryInv = sensor.getTrajectory().inverse(); // Inverse to world coordinate
 		Matrix4f currentToZeroCoordinates = targetTrajectory * trajectoryInv;
 		auto gtTargetPoints = transformPoints(source.getPoints(), currentToZeroCoordinates);
@@ -485,7 +485,7 @@ int alignETH() {
 	std::cout << "The minimum relative error is " << min_relative_error << " for index " << index_min_relative_error << std::endl;
 
 	std::ofstream newFile;
-	newFile.open("benchmark_error.txt"); // TODO Rename
+	newFile.open("benchmark_error.txt");
 
 	for (unsigned int i = 0; i < errorsFinalIteration.size(); i++) {
 		newFile << errorsFinalIteration[i] << std::endl;
