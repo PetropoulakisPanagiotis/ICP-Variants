@@ -166,7 +166,7 @@ protected:
                 const auto& sourceNormal = sourceNormals[i];
                 const auto& targetNormal = targetNormals[match.idx];
 
-                // TODO: Invalidate the match (set it to -1) if the angle between the normals is greater than 60
+                // Invalidate the match (set it to -1) if the angle between the normals is greater than 60
                 if(acos(sourceNormal.dot(targetNormal) / (sourceNormal.norm() * targetNormal.norm())) > threshold)
                    match.idx = -1; 
             }
@@ -354,10 +354,12 @@ private:
         options.linear_solver_type = ceres::DENSE_QR;
         options.minimizer_progress_to_stdout = 1;
         options.max_num_iterations = 10;
-        options.num_threads = 8;
+        options.num_threads = 8; // TODO check this 
     }
 
-    void prepareConstraintsPointICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
+    void prepareConstraintsPointICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, 
+            const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, 
+            const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
         const unsigned nPoints = sourcePoints.size();
         
         std::cout << "Preparing Point-to-Point ICP Non-linear" << std::endl;
@@ -388,7 +390,9 @@ private:
         ASSERT(numResidualBlock > 0 && "ERROR: No residual block added!")
     }
 
-    void prepareConstraintsPlaneICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
+    void prepareConstraintsPlaneICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, 
+            const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, 
+            const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
         const unsigned nPoints = sourcePoints.size();
 
         std::cout << "Preparing Point-to-Plane ICP Non-linear" << std::endl;
@@ -430,7 +434,9 @@ private:
 
     }
 
-    void prepareConstraintsSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals, const std::vector<Match> matches, const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
+    void prepareConstraintsSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, 
+            const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals, const std::vector<Match>& matches, 
+            const PoseIncrement<double>& poseIncrement, ceres::Problem& problem) const {
         const unsigned nPoints = sourcePoints.size();
         
         std::cout << "Preparing Symmetric ICP Non-linear" << std::endl;
@@ -576,6 +582,8 @@ public:
             std::vector<Vector3f> targetPoints;
             std::vector<Vector3f> sourceNormals;
             std::vector<Vector3f> targetNormals;
+            std::vector<float> weights;
+            // int numMatches = 0;
             
             step_start = clock();
             // Add all matches to the sourcePoints and targetPoints vector,
@@ -584,22 +592,30 @@ public:
             for (int j = 0; j < transformedPoints.size(); j++) {
                 const auto& match = matches[j];
                 if (match.idx >= 0) {
+                    if (!transformedPoints[j].allFinite() || !target.getPoints()[match.idx].allFinite())
+                        continue;
                     sourcePoints.push_back(transformedPoints[j]);
                     targetPoints.push_back(target.getPoints()[match.idx]);
-                    sourceNormals.push_back(transformedNormals[j]);
-                    targetNormals.push_back(target.getNormals()[match.idx]);
+                    // Add related weights
+                    weights.push_back(match.weight);
+                   
+                    if (metric != 0) // Point 2 plane and Symmetric
+                        targetNormals.push_back(target.getNormals()[match.idx]);
+                    if (metric == 2) // Symmetric
+                        sourceNormals.push_back(transformedNormals[j]);
+                    // numMatches++;
                 }
             }
 
             // Estimate the new pose
             if (metric == 1) {
-                estimatedPose = estimatePosePointToPlane(sourcePoints, targetPoints, targetNormals) * estimatedPose;
+                estimatedPose = estimatePosePointToPlane(sourcePoints, targetPoints, targetNormals, weights) * estimatedPose;
             }
             else if(metric == 0) {
                 estimatedPose = estimatePosePointToPoint(sourcePoints, targetPoints) * estimatedPose;
             }
             else if(metric == 2) {
-                estimatedPose = estimatePoseSymmetricICP(sourcePoints, targetPoints, sourceNormals, targetNormals) * estimatedPose;
+                estimatedPose = estimatePoseSymmetricICP(sourcePoints, targetPoints, sourceNormals, targetNormals, weights) * estimatedPose;
             }
 
             iter_time = double(clock() - step_start) / CLOCKS_PER_SEC;
@@ -643,7 +659,7 @@ public:
     }
 
 private:
-    Matrix4f estimatePosePointToPoint(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, bool calculateRMSE = true) {
+    Matrix4f estimatePosePointToPoint(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints) {
         std::cout << "Preparing Point-to-Point ICP Linear" << std::endl;
         ASSERT(sourcePoints.size() > 0  && targetPoints.size() > 0 && "ERROR: No point to compute linear square errors!")
         
@@ -653,7 +669,7 @@ private:
         return estimatedPose;
     }
 
-    Matrix4f estimatePosePointToPlane(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals) {
+    Matrix4f estimatePosePointToPlane(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<Vector3f>& targetNormals, const std::vector<float>& weights) {
         std::cout << "Preparing Point-to-Plane ICP Linear" << std::endl;
         
         const unsigned nPoints = sourcePoints.size();
@@ -662,11 +678,13 @@ private:
         // Build the system
         MatrixXf A = MatrixXf::Zero(4 * nPoints, 6);
         VectorXf b = VectorXf::Zero(4 * nPoints);
-
+        
+        // Smaller weight to point to point constraints
         for (unsigned i = 0; i < nPoints; i++) {
             const auto& s = sourcePoints[i];
             const auto& d = targetPoints[i];
             const auto& n = targetNormals[i];
+            const auto& weight = weights[i];
 
             /* Use advance initialization to fill rows        */ 
             /* Use temporary eigen row vector                 */
@@ -710,20 +728,22 @@ private:
             A.row(4*i + 3) = pointConstraintRow;
             b(4*i + 3) = d[2] - s[2];
             
-            float LAMBDA_POINT = 1.0f;
-            float LAMBDA_PLANE = 1.0f;
+            // Assign weights
+            // TODO Verify            
+            float LAMBDA_POINT = 0.1f;
+            float LAMBDA_PLANE = 1.0f; // Higher weight for plane
             
-            A.row(4*i) *= LAMBDA_PLANE;
-            b(4*i) *= LAMBDA_PLANE;
+            A.row(4*i) *= LAMBDA_PLANE * weight;
+            b(4*i) *= LAMBDA_PLANE * weight;
         
-            A.row(4*i + 1) *= LAMBDA_POINT;
-            b(4*i + 1) *= LAMBDA_POINT;
+            A.row(4*i + 1) *= LAMBDA_POINT * weight;
+            b(4*i + 1) *= LAMBDA_POINT * weight;
             
-            A.row(4*i + 2) *= LAMBDA_POINT;
-            b(4*i + 2) *= LAMBDA_POINT;
+            A.row(4*i + 2) *= LAMBDA_POINT * weight;
+            b(4*i + 2) *= LAMBDA_POINT * weight;
 
-            A.row(4*i + 3) *= LAMBDA_POINT;
-            b(4*i + 3) *= LAMBDA_POINT;
+            A.row(4*i + 3) *= LAMBDA_POINT * weight;
+            b(4*i + 3) *= LAMBDA_POINT * weight;
         }
 
         VectorXf x(6);
@@ -758,9 +778,9 @@ private:
     }
 
     Matrix4f estimatePoseSymmetricICP(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, 
-            const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals) {
+            const std::vector<Vector3f>& sourceNormals, const std::vector<Vector3f>& targetNormals, const std::vector<float>& weights) {
         
-        std::cout << "Preparing Point-to-Plane ICP Linear" << std::endl;
+        std::cout << "Preparing Symmetric ICP Linear" << std::endl;
         ASSERT(sourcePoints.size() > 0  && targetPoints.size() > 0 && "ERROR: No point to compute linear square errors!")
         const unsigned nPoints = sourcePoints.size();
 
@@ -777,6 +797,7 @@ private:
             const auto& s = sourcePoints[i];
             const auto& d = targetPoints[i];
             const auto& n = targetNormals[i];
+            const auto& weight = weights[i];
 
             Vector3f s_normalized = s - meanSource;
             Vector3f d_normalized = d - meanTarget;
@@ -808,6 +829,23 @@ private:
             
             A.row(4*i + 3) = pointConstraintRow;
             b(4*i + 3) = d_normalized[2] - s_normalized[2];
+
+            // Assign weights
+            // TODO Verify            
+            float LAMBDA_POINT = 0.1f;
+            float LAMBDA_SYMMETRIC = 1.0f; // Higher weight for symmetric term
+            
+            A.row(4*i) *= LAMBDA_SYMMETRIC * weight;
+            b(4*i) *= LAMBDA_SYMMETRIC * weight;
+        
+            A.row(4*i + 1) *= LAMBDA_POINT * weight;
+            b(4*i + 1) *= LAMBDA_POINT * weight;
+            
+            A.row(4*i + 2) *= LAMBDA_POINT * weight;
+            b(4*i + 2) *= LAMBDA_POINT * weight;
+
+            A.row(4*i + 3) *= LAMBDA_POINT * weight;
+            b(4*i + 3) *= LAMBDA_POINT * weight;
         }
 
         // Solve the system
