@@ -17,7 +17,6 @@
 #include "selection.h"
 #include "TimeMeasure.h"
 
-
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
 int alignBunnyWithICP(unsigned useLinear, unsigned useMetric, unsigned matchingMethod, unsigned selectionMethod, unsigned weightingMethod, 
@@ -148,7 +147,7 @@ int reconstructRoom(unsigned useLinear, unsigned useMetric, unsigned matchingMet
 	// ASSERT arguments
 	// ASSERT(useLinear < 2 &&  useMetric <3 && matchingMethod <2  && selectionMethod < 2  && weightingMethod < 4  && useMultiresolution < 2  && samplingProba <= 1 && "Config not supported.");
 
-	std::string filenameIn = std::string("../../Data/rgbd_dataset_freiburg1_xyz/");
+	std::string filenameIn = std::string("../../../Data/rgbd_dataset_freiburg1_xyz/");
 	std::string filenameBaseOut = std::string(expName + "_mesh_");
 
 	// Load video

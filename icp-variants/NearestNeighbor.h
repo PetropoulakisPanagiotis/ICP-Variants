@@ -210,7 +210,7 @@ public:
    		std::cout << "Initializing FLANN-Color index with " << targetPoints.size() << " points." << std::endl;
 
         float color_normalize = 1/float(255); 
-        float color_scale = this->m_maxDistance * 0.1; 
+        float color_scale = 1;//this->m_maxDistance * 0.1; 
 
 		// FLANN requires that all the points be flat. Therefore we copy the points to a separate flat array.
 		m_flatPoints = new float[targetPoints.size() * 6];
@@ -243,7 +243,7 @@ public:
 		}
 
         float color_normalize = 1/float(255); 
-        float color_scale = this->m_maxDistance * 0.1; 
+        float color_scale = 1;//this->m_maxDistance * 0.1; 
 		
         // FLANN requires that all the points be flat. Therefore we copy the points to a separate flat array.
 		float* queryPoints = new float[transformedPoints.size() * 6];
@@ -316,7 +316,7 @@ private:
 // Project query source points to image target plane and find their closest neighbor by using a small search window // 
 class NearestNeighborSearchProjective : public NearestNeighborSearch {
 public:
-	NearestNeighborSearchProjective(): searchWindow(5), height(0) {}
+	NearestNeighborSearchProjective(): searchWindow(12), height(0) {}
 
 	~NearestNeighborSearchProjective() {
 	}
