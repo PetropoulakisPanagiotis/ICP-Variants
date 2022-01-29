@@ -50,13 +50,18 @@ public:
     float rmseAlignmentError(const Matrix4f& pose) {
         ASSERT(numCorrspondeces > 0
                 && "The number of correspondences must be > 0.");
+        
+        int counter = 0; 
         float rmse = 0.0;
         auto transformedPoints = transformPoints(m_sourcePoints, pose);
         for (int i=0; i < numCorrspondeces; ++i) {
             // Compute error
-            rmse += (transformedPoints[i] - m_unchangedPoints[i]).squaredNorm();
+            if(transformedPoints[i].allFinite() && m_unchangedPoints[i].allFinite()){
+                rmse += (transformedPoints[i] - m_unchangedPoints[i]).squaredNorm();
+                counter++;
+            }
         }
-        rmse /= numCorrspondeces;
+        rmse /= counter;
         return std::sqrt(rmse);
     };
 
