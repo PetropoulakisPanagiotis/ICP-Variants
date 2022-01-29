@@ -412,10 +412,13 @@ int alignETH(unsigned useLinear, unsigned useMetric, unsigned matchingMethod, un
 	return 0;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    std::string filename = "experiment.csv";
+	if (argc >=2)
+    	filename = argv[1]; // default experiment.
+
     // Read from file and run experiment
     int result = 0;
-    std::string filename = "experiment.csv";
     CSVReader reader("../../Data/" + filename);
     auto configs = reader.getData();
 	// Ignore first line (header)
