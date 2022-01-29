@@ -3,7 +3,7 @@
 
 class ProcrustesAligner {
 public:
-	Matrix4f estimatePose(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints) {
+	Matrix4f estimatePose(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<float>& weights) {
 		ASSERT(sourcePoints.size() == targetPoints.size() && "The number of source and target points should be the same, since every source point is matched with corresponding target point.");
 
 		// We estimate the pose between source and target points using Procrustes algorithm.
@@ -13,7 +13,7 @@ public:
 		auto sourceMean = computeMean(sourcePoints);
 		auto targetMean = computeMean(targetPoints);
 		
-		Matrix3f rotation = estimateRotation(sourcePoints, sourceMean, targetPoints, targetMean);
+		Matrix3f rotation = estimateRotation(sourcePoints, sourceMean, targetPoints, targetMean, weights);
 		Vector3f translation = computeTranslation(sourceMean, targetMean);
 
 		// To apply the pose to point x on shape X in the case of Procrustes, we execute:
@@ -40,7 +40,7 @@ private:
 		return mean;
 	}
 
-	Matrix3f estimateRotation(const std::vector<Vector3f>& sourcePoints, const Vector3f& sourceMean, const std::vector<Vector3f>& targetPoints, const Vector3f& targetMean) {
+	Matrix3f estimateRotation(const std::vector<Vector3f>& sourcePoints, const Vector3f& sourceMean, const std::vector<Vector3f>& targetPoints, const Vector3f& targetMean, const std::vector<float>& weights) {
 		// Estimate the rotation from source to target points, following the Procrustes algorithm. 
 		// To compute the singular value decomposition you can use JacobiSVD() from Eigen.
 		const unsigned nPoints = sourcePoints.size();
@@ -48,7 +48,7 @@ private:
 		MatrixXf targetMatrix(nPoints, 3);
 
 		for (int i = 0; i < nPoints; ++i) {
-			sourceMatrix.block(i, 0, 1, 3) = (sourcePoints[i] - sourceMean).transpose();
+			sourceMatrix.block(i, 0, 1, 3) = weights[i] * (sourcePoints[i] - sourceMean).transpose();
 			targetMatrix.block(i, 0, 1, 3) = (targetPoints[i] - targetMean).transpose();
 		}
 
