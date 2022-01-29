@@ -20,16 +20,16 @@
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
 #define MATCHING_METHOD      0 // 1 -> projective, 0 -> knn. Run projective with sequence_icp 
-#define SELECTION_METHOD     1 // 0 -> all, 1 -> random
-#define WEIGHTING_METHOD     1 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
+#define SELECTION_METHOD     0 // 0 -> all, 1 -> random
+#define WEIGHTING_METHOD     0 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
 
-#define USE_LINEAR_ICP		1 // 0 -> non-linear optimization. 1 -> linear
+#define USE_LINEAR_ICP		0 // 0 -> non-linear optimization. 1 -> linear
 
-#define USE_MULTI_RESOLUTION 0 // 1-> enable 
+#define USE_MULTI_RESOLUTION 1 // 1-> enable 
 
 // Set metric - Enable only one //
-#define USE_POINT_TO_PLANE	1 
-#define USE_POINT_TO_POINT	0 
+#define USE_POINT_TO_PLANE	0 
+#define USE_POINT_TO_POINT	1 
 #define USE_SYMMETRIC	    0
 
 // Add color to knn             //
@@ -37,8 +37,8 @@
 #define USE_COLOR_ICP        0 // Enable sequence icp, else it is not used
 
 #define RUN_SHAPE_ICP		0 // 0 -> disable. 1 -> enable. Can all be set to 1.
-#define RUN_SEQUENCE_ICP    1
-#define RUN_ETH_ICP		    0
+#define RUN_SEQUENCE_ICP    0
+#define RUN_ETH_ICP		    1
 
 int alignBunnyWithICP() {
 	// Load the source and target mesh.
@@ -221,15 +221,15 @@ int reconstructRoom() {
     // 6. Set objective //
     if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
-		optimizer->setNbOfIterations(20);
+		optimizer->setNbOfIterations(35);
 	}
     else if (USE_SYMMETRIC) {
 		optimizer->setMetric(2);
-		optimizer->setNbOfIterations(20);
+		optimizer->setNbOfIterations(35);
 	}
 	else if(USE_POINT_TO_POINT){
 		optimizer->setMetric(0);
-		optimizer->setNbOfIterations(20);
+		optimizer->setNbOfIterations(35);
 	}
 
     // 1. Set matching step //
@@ -341,6 +341,13 @@ int reconstructRoom() {
 }
 
 int alignETH() {
+	const float pose_scaling = 0.1;
+
+	if ((pose_scaling <= 0) || (pose_scaling > 1)) {
+		std::cout << "pose scaling for benchmark needs to be in range (0, 1]" << std::endl;
+		throw std::runtime_error("pose scaling value wrong");
+	}
+
 	ICPOptimizer* optimizer = nullptr;
 	if (USE_LINEAR_ICP) {
 		optimizer = new LinearICPOptimizer();
@@ -356,15 +363,15 @@ int alignETH() {
     // 6. Set objective // 
     if (USE_POINT_TO_PLANE) {
 		optimizer->setMetric(1);
-		optimizer->setNbOfIterations(100);
+		optimizer->setNbOfIterations(50);
 	}
     else if (USE_SYMMETRIC) {
 		optimizer->setMetric(2);
-		optimizer->setNbOfIterations(100);
+		optimizer->setNbOfIterations(50);
 	}
 	else if (USE_POINT_TO_POINT){
 		optimizer->setMetric(0);
-		optimizer->setNbOfIterations(100);
+		optimizer->setNbOfIterations(50);
 	}
 
 	// 2. Set selection method //
@@ -391,8 +398,7 @@ int alignETH() {
         optimizer->enableMultiResolution(true);
 
 	// Create the dataloader
-	// std::string fileName = "eth/plain_global.csv"; 
-	std::string fileName = "apartment_global.csv";
+	std::string fileName = "eth/plain_global.csv"; 
 	ETHDataLoader eth_data_loader(fileName);
 	
     double min_error = std::numeric_limits<double>::max();
@@ -410,9 +416,19 @@ int alignETH() {
 		Matrix4f estimatedPose = Matrix4f::Identity();
 		PointCloud original_source = input.source.copy_point_cloud();
 		
-        // Apply initial transform to source point cloud
-		input.source.change_pose(input.pose);
-		// Caculate distance between source and tartget centroids after transform
+		// Scale initial transform with pose_scaling factor
+		Vector3f angles_scaled = pose_scaling * (input.pose.block<3, 3>(0, 0).eulerAngles(0, 1, 2));
+		Matrix3f R_scaled;
+		R_scaled = AngleAxisf(angles_scaled[0], Vector3f::UnitX())
+			* AngleAxisf(angles_scaled[1], Vector3f::UnitY())
+			* AngleAxisf(angles_scaled[2], Vector3f::UnitZ());
+		Matrix4f scaledInputPose = Matrix4f::Identity();
+		scaledInputPose.block<3, 3>(0, 0) = R_scaled;
+		scaledInputPose.block<3, 1>(0, 3) = pose_scaling * (input.pose.block<3, 1>(0, 3));
+		// Apply the scaled initial transform to source point cloud
+		input.source.change_pose(scaledInputPose);
+
+		// Calculate distance between source and target centroids after transform
 		auto meanSourceTf = computeMean(input.source.getPoints());
 		auto meanSource = computeMean(original_source.getPoints());
 		auto meanTarget = computeMean(input.target.getPoints());
