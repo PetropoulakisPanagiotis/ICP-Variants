@@ -192,7 +192,7 @@ public:
         
         start = clock(); // Measure the whole iteration 
 
-        int currentResolution = 1; 
+        float currentResolution = 1; 
         int originalSize = source.getPoints().size();
         if(this->multiResolutionICP){
             // Find the lowest resolution                        //
@@ -200,10 +200,10 @@ public:
             // step 4 -> 2, step 5 -> 1 (aka original size)      //
             // Lowest resolution should have at least 300 points //
             while(1){
-                originalSize = originalSize / 2;
+                originalSize = originalSize / 2.0;
                 if(originalSize < MULTI_RESOLUTION_MINIMUM_POINTS)
                     break;
-                currentResolution *= 2;
+                currentResolution *= 2.0;
             } // End while
         }
         
@@ -320,7 +320,7 @@ public:
             if(multiResolutionICP){
                
                 // Reached max resolution and max iterations //
-                if(currentResolution == 1 && i >= m_nIterations - 1)
+                if(currentResolution == 1.0 && i >= m_nIterations - 1)
                     break;
 
                 // Reached max resolution but not max iterations                //
@@ -329,10 +329,12 @@ public:
                 // For bunny, we can not reduce a lot the resolution and hence, //
                 // we perfom less than 5 ICP steps without this condition and   // 
                 // we have not found a descent pose                             // 
-                if(currentResolution == 1)
+                if(currentResolution == 1.0)
                     continue;
 
-                currentResolution /= 2;
+                currentResolution /= 2.0;
+                if(currentResolution < 1.0)
+                    currentResolution = 1.0;
                 
                 PointCloud coarseCloud = source.getCoarseResolution(currentResolution);
                 sourceSelection = PointSelection(coarseCloud, selectionMethod, proba);
@@ -498,7 +500,7 @@ public:
         
         start = clock();
 
-        int currentResolution = 1; 
+        float currentResolution = 1.0; 
         int originalSize = source.getPoints().size();
         if(this->multiResolutionICP){
             // Find the lowest resolution                        //
@@ -506,10 +508,10 @@ public:
             // step 4 -> 2, step 5 -> 1 (aka original size)      //
             // Lowest resolution should have at least 300 points //
             while(1){
-                originalSize = originalSize / 2;
+                originalSize = originalSize / 2.0;
                 if(originalSize < MULTI_RESOLUTION_MINIMUM_POINTS)
                     break;
-                currentResolution *= 2;
+                currentResolution *= 2.0;
             } // End while
         }
         
@@ -632,7 +634,7 @@ public:
             if(multiResolutionICP){
 
                 // Reached max resolution and max iterations //
-                if(currentResolution == 1 && i >= m_nIterations - 1)
+                if(currentResolution == 1.0 && i >= m_nIterations - 1)
                     break;
 
                 // Reached max resolution but not max iterations                //
@@ -641,10 +643,12 @@ public:
                 // For bunny, we can not reduce a lot the resolution and hence, //
                 // we perfom less than 5 ICP steps without this condition and   // 
                 // we have not found a descent pose                             // 
-                if(currentResolution == 1)
+                if(currentResolution == 1.0)
                     continue;
 
-                currentResolution /= 2;
+                currentResolution /= 2.0;
+                if(currentResolution < 1.0)
+                    currentResolution = 1.0;
 
                 PointCloud coarseCloud = source.getCoarseResolution(currentResolution);
                 sourceSelection = PointSelection(coarseCloud, selectionMethod, proba);
