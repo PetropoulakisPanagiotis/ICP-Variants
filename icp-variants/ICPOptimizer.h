@@ -614,7 +614,7 @@ public:
                 estimatedPose = estimatePosePointToPlane(sourcePoints, targetPoints, targetNormals, weights) * estimatedPose;
             }
             else if(metric == 0) {
-                estimatedPose = estimatePosePointToPoint(sourcePoints, targetPoints) * estimatedPose;
+                estimatedPose = estimatePosePointToPoint(sourcePoints, targetPoints, weights) * estimatedPose;
             }
             else if(metric == 2) {
                 estimatedPose = estimatePoseSymmetricICP(sourcePoints, targetPoints, sourceNormals, targetNormals, weights) * estimatedPose;
@@ -663,12 +663,12 @@ public:
     }
 
 private:
-    Matrix4f estimatePosePointToPoint(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints) {
+    Matrix4f estimatePosePointToPoint(const std::vector<Vector3f>& sourcePoints, const std::vector<Vector3f>& targetPoints, const std::vector<float>& weights) {
         std::cout << "Preparing Point-to-Point ICP Linear" << std::endl;
         ASSERT(sourcePoints.size() > 0  && targetPoints.size() > 0 && "ERROR: No point to compute linear square errors!")
         
         ProcrustesAligner procrustAligner;
-        Matrix4f estimatedPose = procrustAligner.estimatePose(sourcePoints, targetPoints);
+        Matrix4f estimatedPose = procrustAligner.estimatePose(sourcePoints, targetPoints, weights);
 
         return estimatedPose;
     }
