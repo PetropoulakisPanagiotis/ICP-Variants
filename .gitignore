@@ -35,6 +35,7 @@
 Libs
 icp-variants/Build
 icp-variants/build
+icp-variants/realease
 icp-variants/CMakeSettings.json
 .vs
 */.swp

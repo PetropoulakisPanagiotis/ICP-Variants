@@ -19,28 +19,13 @@
 
 #define SHOW_BUNNY_CORRESPONDENCES 1
 
-#define MATCHING_METHOD      0 // 1 -> projective, 0 -> knn. Run projective with sequence_icp 
-#define SELECTION_METHOD     0 // 0 -> all, 1 -> random
-#define WEIGHTING_METHOD     0 // 0 -> constant, 1 -> point distances, 2 -> normals, 3 -> colors
+int alignBunnyWithICP(unsigned useLinear, unsigned useMetric, unsigned matchingMethod, unsigned selectionMethod, unsigned weightingMethod, 
+		unsigned useMultiresolution, unsigned numIterations=20, float maxMatchingDist=0.01f, float samplingProba=0.5f, std::string expName="bunny") {
+    // ASSERT arguments
+	printf("Running Bunny ICP with useLinear %d, useMetric %d, matchingMethod %d, selectionMethod %d, weightingMethod %d, useMultiresolution %d, numIterations %d, maxMatchingDist %f, samplingProba %f, expName %s.\n", 
+			useLinear , useMetric , matchingMethod , selectionMethod , weightingMethod , useMultiresolution , numIterations , maxMatchingDist, samplingProba, expName.c_str());
+	// ASSERT(useLinear < 2 &&  useMetric < 3 && matchingMethod < 2  && selectionMethod < 2  && weightingMethod < 4  && useMultiresolution < 2  && "Config unsupported.");
 
-#define USE_LINEAR_ICP		0 // 0 -> non-linear optimization. 1 -> linear
-
-#define USE_MULTI_RESOLUTION 1 // 1-> enable 
-
-// Set metric - Enable only one //
-#define USE_POINT_TO_PLANE	0 
-#define USE_POINT_TO_POINT	1 
-#define USE_SYMMETRIC	    0
-
-// Add color to knn             //
-// Works with all error metrics // 
-#define USE_COLOR_ICP        0 // Enable sequence icp, else it is not used
-
-#define RUN_SHAPE_ICP		0 // 0 -> disable. 1 -> enable. Can all be set to 1.
-#define RUN_SEQUENCE_ICP    0
-#define RUN_ETH_ICP		    1
-
-int alignBunnyWithICP() {
 	// Load the source and target mesh.
 	BunnyDataLoader bunny_data_loader{};
 
@@ -48,53 +33,27 @@ int alignBunnyWithICP() {
 	ICPOptimizer* optimizer = nullptr;
 	
     // 5. Set minimization method //
-    if (USE_LINEAR_ICP) {
+    if (useLinear) 
 		optimizer = new LinearICPOptimizer();
-	}
-	else {
+	else 
 		optimizer = new CeresICPOptimizer();
-	}
 
     // 6. Set objective // 
-	if (USE_POINT_TO_PLANE) {
-		optimizer->setMetric(1);
-		optimizer->setNbOfIterations(20);
-	}
-	else if (USE_SYMMETRIC) {
-		optimizer->setMetric(2);
-		optimizer->setNbOfIterations(20);
-	}
-	else if(USE_POINT_TO_POINT){
-		optimizer->setMetric(0);
-		optimizer->setNbOfIterations(20);
-	}
+    optimizer->setMetric(useMetric);
+    optimizer->setNbOfIterations(numIterations);
 
     // 1. Set matching set  //
     // Always knn for bunny //
     optimizer->setMatchingMethod(0);
-	optimizer->setMatchingMaxDistance(0.0003f);
+	optimizer->setMatchingMaxDistance(maxMatchingDist);
 
     // 2. Set selection method //
-    if(SELECTION_METHOD)
-	    optimizer->setSelectionMethod(RANDOM_SAMPLING);
-    else
-	    optimizer->setSelectionMethod(SELECT_ALL);
+    optimizer->setSelectionMethod(selectionMethod, samplingProba);
 
     // 3. Set weighting method //
-    if(WEIGHTING_METHOD == 1){
-        optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
-    }
-    else if(WEIGHTING_METHOD == 2){
-        optimizer->setWeightingMethod(NORMALS_WEIGHTING);
-    }
-    else if(WEIGHTING_METHOD == 3){
-        optimizer->setWeightingMethod(COLORS_WEIGHTING);
-    }
-    else{
-        optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
-    }
+    optimizer->setWeightingMethod(weightingMethod);
 
-    if(USE_MULTI_RESOLUTION)
+    if(useMultiresolution)
         optimizer->enableMultiResolution(true);
 
     // load the sample
@@ -108,16 +67,16 @@ int alignBunnyWithICP() {
 	// 640 1238 0.0429302 0.045474 0.0291547 0.042297 0.045436 0.029041
 	// 1023 1310 -0.00232282 0.0349611 0.0453906 -0.002826 0.034885 0.045611
 	std::vector<Vector3f> gtSourcePoints;
-	gtSourcePoints.push_back(input.source.getPoints()[215]); // left ear
-	gtSourcePoints.push_back(input.source.getPoints()[424]); // left ear
-	gtSourcePoints.push_back(input.source.getPoints()[640]); // left ear
-	gtSourcePoints.push_back(input.source.getPoints()[1023]); // left ear
+	gtSourcePoints.push_back(input.source.getPoints()[215]); 
+	gtSourcePoints.push_back(input.source.getPoints()[424]); 
+	gtSourcePoints.push_back(input.source.getPoints()[640]); 
+	gtSourcePoints.push_back(input.source.getPoints()[1023]); 
 
 	std::vector<Vector3f> gtTargetPoints;
-	gtTargetPoints.push_back(input.target.getPoints()[294]); // left ear
-	gtTargetPoints.push_back(input.target.getPoints()[258]); // left ear
-	gtTargetPoints.push_back(input.target.getPoints()[1238]); // left ear
-	gtTargetPoints.push_back(input.target.getPoints()[1310]); // left ear
+	gtTargetPoints.push_back(input.target.getPoints()[294]); 
+	gtTargetPoints.push_back(input.target.getPoints()[258]); 
+	gtTargetPoints.push_back(input.target.getPoints()[1238]); 
+	gtTargetPoints.push_back(input.target.getPoints()[1310]); 
 
 	// Create a Convergence Measure
 	auto convergenMearsure = ConvergenceMeasure(gtSourcePoints, gtTargetPoints);
@@ -141,11 +100,11 @@ int alignBunnyWithICP() {
 
 	std::cout << "estimatedPose:\n" << estimatedPose << std::endl;
 
-	input.source.writeToFile("bunny_source.ply");
-	input.target.writeToFile("bunny_target.ply");
+	input.source.writeToFile(expName + "_bunny_source.ply");
+	input.target.writeToFile(expName + "_bunny_target.ply");
 	PointCloud transformed_source = input.source.copy_point_cloud();
 	transformed_source.change_pose(estimatedPose);
-	transformed_source.writeToFile("bunny_final_source.ply");
+	transformed_source.writeToFile(expName + "_bunny_final_source.ply");
   
 	// Print out RMSE errors of each iteration
 	convergenMearsure.outputAlignmentError();
@@ -169,20 +128,27 @@ int alignBunnyWithICP() {
 		}
 	}
 
-	resultingMesh.writeMesh(std::string("bunny_icp.off"));
+    // std::string outFile = "bunny_icp_" + std::to_string(useLinear) + std::to_string(useMetric) + ".off";
+	resultingMesh.writeMesh(expName + std::string("_bunny_icp.off"));
 	std::cout << "Resulting mesh written." << std::endl;
 
     // saving iteration errors to file //
-    convergenMearsure.writeRMSEToFile("RMSE.txt");
+    convergenMearsure.writeRMSEToFile(expName + std::string("_RMSE.txt"));
 
 	delete optimizer;
 
 	return 0;
 }
 
-int reconstructRoom() {
+int reconstructRoom(unsigned useLinear, unsigned useMetric, unsigned matchingMethod, unsigned selectionMethod, unsigned weightingMethod, 
+        unsigned useMultiresolution, unsigned numIterations=20, float maxMatchingDist=0.01f, float samplingProba=0.5f, std::string expName="room") {
+	printf("Running Room ICP with useLinear %d, useMetric %d, matchingMethod %d, selectionMethod %d, weightingMethod %d, useMultiresolution %d, numIterations %d, maxMatchingDist %f, samplingProba %f, expName %s.\n", 
+			useLinear , useMetric , matchingMethod , selectionMethod , weightingMethod , useMultiresolution , numIterations , maxMatchingDist, samplingProba, expName.c_str());
+	// ASSERT arguments
+	// ASSERT(useLinear < 2 &&  useMetric <3 && matchingMethod <2  && selectionMethod < 2  && weightingMethod < 4  && useMultiresolution < 2  && samplingProba <= 1 && "Config not supported.");
+
 	std::string filenameIn = std::string("../../Data/rgbd_dataset_freiburg1_xyz/");
-	std::string filenameBaseOut = std::string("mesh_");
+	std::string filenameBaseOut = std::string(expName + "_mesh_");
 
 	// Load video
 	std::cout << "Initialize virtual sensor..." << std::endl;
@@ -200,71 +166,38 @@ int reconstructRoom() {
     // For projective search keep the whole target point cloud //
     // even the invalid points                                 //
     bool keepOriginalSize = false;
-    if(MATCHING_METHOD)
+    if(matchingMethod)
         keepOriginalSize = true;
 
 	PointCloud target{ sensor.getDepth(), sensor.getColorRGBX(), sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), keepOriginalSize};
 	Matrix4f targetTrajectory = sensor.getTrajectory();
 	// std::cout << "Target trajectory:\n" << targetTrajectory << "\n";
 
-    // Setup the optimizer.
+    // Estimate the pose from source to target mesh with ICP optimization.
 	ICPOptimizer* optimizer = nullptr;
-
+	
     // 5. Set minimization method //
-	if (USE_LINEAR_ICP) {
+    if (useLinear) 
 		optimizer = new LinearICPOptimizer();
-	}
-	else {
+	else 
 		optimizer = new CeresICPOptimizer();
-	}
 
-    // 6. Set objective //
-    if (USE_POINT_TO_PLANE) {
-		optimizer->setMetric(1);
-		optimizer->setNbOfIterations(35);
-	}
-    else if (USE_SYMMETRIC) {
-		optimizer->setMetric(2);
-		optimizer->setNbOfIterations(35);
-	}
-	else if(USE_POINT_TO_POINT){
-		optimizer->setMetric(0);
-		optimizer->setNbOfIterations(35);
-	}
+    // 6. Set objective // 
+    optimizer->setMetric(useMetric);
+    optimizer->setNbOfIterations(numIterations);
 
-    // 1. Set matching step //
-    if(MATCHING_METHOD){
-        optimizer->setMatchingMethod(1);
-        optimizer->setCameraParamsMatchingMethod(sensor.getDepthIntrinsics(),sensor.getDepthImageWidth(), sensor.getDepthImageHeight());
-    }
-    else{
-        if(USE_COLOR_ICP)
-            optimizer->enableColorICP(true);
-    }
-
-    optimizer->setMatchingMaxDistance(0.1f);
+    // 1. Set matching set  //
+    // Always knn for bunny //
+    optimizer->setMatchingMethod(0);
+	optimizer->setMatchingMaxDistance(maxMatchingDist);
 
     // 2. Set selection method //
-    if(SELECTION_METHOD)
-	    optimizer->setSelectionMethod(RANDOM_SAMPLING);
-    else
-	    optimizer->setSelectionMethod(SELECT_ALL);
+    optimizer->setSelectionMethod(selectionMethod);
 
     // 3. Set weighting method //
-    if(WEIGHTING_METHOD == 1){
-        optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
-    }
-    else if(WEIGHTING_METHOD == 2){
-        optimizer->setWeightingMethod(NORMALS_WEIGHTING);
-    }
-    else if(WEIGHTING_METHOD == 3){
-        optimizer->setWeightingMethod(COLORS_WEIGHTING);
-    }
-    else{
-        optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
-    }
+    optimizer->setWeightingMethod(weightingMethod);
 
-    if(USE_MULTI_RESOLUTION)
+    if(useMultiresolution)
         optimizer->enableMultiResolution(true);
 
     // Create a Time Profiler
@@ -292,7 +225,7 @@ int reconstructRoom() {
 		// Estimate the current camera pose from source to target mesh with ICP optimization.
 	    PointCloud source; 	
         // For multiresolution keep all the points //
-        if(USE_MULTI_RESOLUTION)
+        if(useMultiresolution)
             source = PointCloud(sensor.getDepth(), sensor.getColorRGBX(),sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), true, 1 );
 		else
             source = PointCloud(sensor.getDepth(), sensor.getColorRGBX(),sensor.getDepthIntrinsics(), sensor.getDepthExtrinsics(), sensor.getDepthImageWidth(), sensor.getDepthImageHeight(), false, 8 );
@@ -319,14 +252,14 @@ int reconstructRoom() {
 		convergenMearsure.outputAlignmentError();
 
 		// saving iteration errors to file //
-		convergenMearsure.writeRMSEToFile("RMSE" + std::to_string(i)+ ".txt");
+		convergenMearsure.writeRMSEToFile(expName + "_RMSE" + std::to_string(i)+ ".txt");
 		
         // Invert the transformation matrix to get the current camera pose.
 		Matrix4f currentCameraPose = currentCameraToWorld.inverse();
 		std::cout << "Current camera pose: " << std::endl << currentCameraPose << std::endl;
 		estimatedPoses.push_back(currentCameraPose);
 
-		if (i % 1 == 0) {
+		if (i % 5 == 0) {
 			// We write out the mesh to file for debugging.
 			if (saveRoomToFile(sensor, currentCameraPose, filenameBaseOut) == -1)
 				return -1;
@@ -340,65 +273,40 @@ int reconstructRoom() {
 	return 0;
 }
 
-int alignETH() {
-	const float pose_scaling = 0.1;
-
-	if ((pose_scaling <= 0) || (pose_scaling > 1)) {
-		std::cout << "pose scaling for benchmark needs to be in range (0, 1]" << std::endl;
-		throw std::runtime_error("pose scaling value wrong");
-	}
+int alignETH(unsigned useLinear, unsigned useMetric, unsigned matchingMethod, unsigned selectionMethod, unsigned weightingMethod, 
+        unsigned useMultiresolution, unsigned numIterations=20, float maxMatchingDist=0.1f, float samplingProba=0.01f, std::string expName="benchmark") {
+	printf("Running Benchmark ICP with useLinear %d, useMetric %d, matchingMethod %d, selectionMethod %d, weightingMethod %d, useMultiresolution %d, numIterations %d, maxMatchingDist %f, samplingProba %f, expName %s.\n", useLinear , useMetric , matchingMethod , selectionMethod , weightingMethod , useMultiresolution , numIterations , maxMatchingDist, samplingProba, expName.c_str());
+	// ASSERT arguments
+	// ASSERT(useLinear < 2 &&  useMetric <3 && matchingMethod <2  && selectionMethod < 2  && weightingMethod < 4  && useMultiresolution < 2  && samplingProba <= 1 && "Config not supported.");
 
 	ICPOptimizer* optimizer = nullptr;
-	if (USE_LINEAR_ICP) {
+	// 5. Set minimization method //
+    if (useLinear) 
 		optimizer = new LinearICPOptimizer();
-	}
-	else {
+	else 
 		optimizer = new CeresICPOptimizer();
-	}
-
-    // 1. Matching always knn //
-    optimizer->setMatchingMethod(0);
-	optimizer->setMatchingMaxDistance(10);
 
     // 6. Set objective // 
-    if (USE_POINT_TO_PLANE) {
-		optimizer->setMetric(1);
-		optimizer->setNbOfIterations(50);
-	}
-    else if (USE_SYMMETRIC) {
-		optimizer->setMetric(2);
-		optimizer->setNbOfIterations(50);
-	}
-	else if (USE_POINT_TO_POINT){
-		optimizer->setMetric(0);
-		optimizer->setNbOfIterations(50);
-	}
+    optimizer->setMetric(useMetric);
+    optimizer->setNbOfIterations(numIterations);
 
-	// 2. Set selection method //
-	if (SELECTION_METHOD)
-		optimizer->setSelectionMethod(RANDOM_SAMPLING, 0.01);
-	else
-		optimizer->setSelectionMethod(SELECT_ALL);
+    // 1. Set matching set  //
+    // Always knn for bunny //
+    optimizer->setMatchingMethod(0);
+	optimizer->setMatchingMaxDistance(maxMatchingDist);
 
-	// 3. Set weighting method //
-    if(WEIGHTING_METHOD == 1){
-        optimizer->setWeightingMethod(DISTANCES_WEIGHTING);
-    }
-    else if(WEIGHTING_METHOD == 2){
-        optimizer->setWeightingMethod(NORMALS_WEIGHTING);
-    }
-    else if(WEIGHTING_METHOD == 3){
-        optimizer->setWeightingMethod(COLORS_WEIGHTING);
-    }
-    else{
-        optimizer->setWeightingMethod(CONSTANT_WEIGHTING);
-    }
+    // 2. Set selection method //
+    optimizer->setSelectionMethod(selectionMethod);
 
-	if(USE_MULTI_RESOLUTION)
+    // 3. Set weighting method //
+    optimizer->setWeightingMethod(weightingMethod);
+
+    if(useMultiresolution)
         optimizer->enableMultiResolution(true);
 
+
 	// Create the dataloader
-	std::string fileName = "eth/plain_global.csv"; 
+	std::string fileName = "apartment_global.csv";
 	ETHDataLoader eth_data_loader(fileName);
 	
     double min_error = std::numeric_limits<double>::max();
@@ -416,19 +324,9 @@ int alignETH() {
 		Matrix4f estimatedPose = Matrix4f::Identity();
 		PointCloud original_source = input.source.copy_point_cloud();
 		
-		// Scale initial transform with pose_scaling factor
-		Vector3f angles_scaled = pose_scaling * (input.pose.block<3, 3>(0, 0).eulerAngles(0, 1, 2));
-		Matrix3f R_scaled;
-		R_scaled = AngleAxisf(angles_scaled[0], Vector3f::UnitX())
-			* AngleAxisf(angles_scaled[1], Vector3f::UnitY())
-			* AngleAxisf(angles_scaled[2], Vector3f::UnitZ());
-		Matrix4f scaledInputPose = Matrix4f::Identity();
-		scaledInputPose.block<3, 3>(0, 0) = R_scaled;
-		scaledInputPose.block<3, 1>(0, 3) = pose_scaling * (input.pose.block<3, 1>(0, 3));
-		// Apply the scaled initial transform to source point cloud
-		input.source.change_pose(scaledInputPose);
-
-		// Calculate distance between source and target centroids after transform
+        // Apply initial transform to source point cloud
+		input.source.change_pose(input.pose);
+		// Caculate distance between source and tartget centroids after transform
 		auto meanSourceTf = computeMean(input.source.getPoints());
 		auto meanSource = computeMean(original_source.getPoints());
 		auto meanTarget = computeMean(input.target.getPoints());
@@ -476,8 +374,8 @@ int alignETH() {
 		convergenMearsure.outputAlignmentError();
 
 		// saving iteration errors to file //
-		convergenMearsure.writeRMSEToFile("RMSE" + std::to_string(index)+ ".txt");
-		convergenMearsure.writeBenchmarkToFile("Benchmark" + std::to_string(index) + ".txt");
+		convergenMearsure.writeRMSEToFile(expName + "_RMSE" + std::to_string(index)+ ".txt");
+		convergenMearsure.writeBenchmarkToFile(expName + "_Benchmark" + std::to_string(index) + ".txt");
 
 		// This code can be used to save the point clouds to disk
 		//original_source.writeToFile("original_source.ply");
@@ -501,7 +399,7 @@ int alignETH() {
 	std::cout << "The minimum relative error is " << min_relative_error << " for index " << index_min_relative_error << std::endl;
 
 	std::ofstream newFile;
-	newFile.open("benchmark_error.txt");
+	newFile.open(expName + "_benchmark_error.txt"); // TODO Rename
 
 	for (unsigned int i = 0; i < errorsFinalIteration.size(); i++) {
 		newFile << errorsFinalIteration[i] << std::endl;
@@ -513,14 +411,41 @@ int alignETH() {
 	return 0;
 }
 
-int main() {
-	int result = 0;
-	if (RUN_SHAPE_ICP)
-		result += alignBunnyWithICP();
-	if (RUN_SEQUENCE_ICP)
-		result += reconstructRoom();
-	if (RUN_ETH_ICP)
-		result += alignETH();
+int main(int argc, char *argv[]) {
+    std::string filename = "experiment.csv";
+	if (argc >=2)
+    	filename = argv[1]; // default experiment.
 
+    // Read from file and run experiment
+    int result = 0;
+    CSVReader reader("../../Data/" + filename);
+    auto configs = reader.getData();
+	// Ignore first line (header)
+    for (int configIdx=1; configIdx < configs.size(); configIdx++) {
+		auto cf = configs[configIdx];
+        std::string expName = cf[0];
+        std::string expType = cf[1];
+        unsigned useLinear = atoi(cf[2].c_str());
+        unsigned useMetric = atoi(cf[3].c_str());
+        unsigned matchingMethod = atoi(cf[4].c_str());
+        unsigned selectionMethod = atoi(cf[5].c_str());
+        unsigned weightingMethod = atoi(cf[6].c_str());
+        unsigned useMultiresolution = atoi(cf[7].c_str());
+        unsigned numIterations = atoi(cf[8].c_str()); 
+        float maxMatchingDist = atof(cf[9].c_str());
+        float samplingProba = atof(cf[10].c_str());
+        std::cout << "\n*****Running experiment: " << expName << "\n";
+        if (expType == "bunny")
+            result += alignBunnyWithICP(useLinear, useMetric, matchingMethod, selectionMethod, 
+                    weightingMethod, useMultiresolution, numIterations, maxMatchingDist, samplingProba, expName);
+        else if (expType == "room")
+            result += reconstructRoom(useLinear, useMetric, matchingMethod, selectionMethod, 
+                    weightingMethod, useMultiresolution, numIterations, maxMatchingDist, samplingProba, expName);
+        else if (expType == "eth")
+            result += alignETH(useLinear, useMetric, matchingMethod, selectionMethod, 
+                    weightingMethod, useMultiresolution, numIterations, maxMatchingDist, samplingProba, expName);
+    }
+
+    std::cout << "Run total of " << result << " experiments! Finished!";
 	return result;
 }
