@@ -2,12 +2,11 @@
 Implementation and Analysis of various ICP variants
 
 <p align="center">
-<img src="images/bunny.png" width="300px" height="190px"> 
-<img src="images/freiburg1.png" width="300px" height="180px"> 
-    <img src="images/hauptgebaude.png" width="300px" height="180px"> 
+<img src="images/bunny.png" width="200px" height="190px"> 
+<img src="images/freiburg1.png" width="200px" height="180px"> 
+<img src="images/hauptgebaude.png" width="200px" height="180px"> 
 </p>
-<br /> <br />
-
+<br /> 
 
 | Step  | Available Methods          | 
 | --------------  | ----------       | 
