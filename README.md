@@ -1,5 +1,5 @@
 # ICP-Variants
-Implementation and Analysis of various ICP variants (Symmetric, Multi-Resolution, ....)
+Implementation and Analysis of various ICP variants (Symmetric, Multi-Resolution, Color-ICP, ...)
 
 <p align="center">
 <img src="images/bunny.png" width="120px" height="120px"> 
