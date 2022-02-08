@@ -2,7 +2,7 @@
 Implementation and Analysis of various ICP variants
 
 <p align="center">
-<img src="images/bunny.png" width="180px" height="160px"> 
+<img src="images/bunny.png" width="180px" height="120px"> 
 <img src="images/freiburg1.png" width="220px" height="170px"> 
 <img src="images/hauptgebaude.png" width="220px" height="200px"> 
 </p>
