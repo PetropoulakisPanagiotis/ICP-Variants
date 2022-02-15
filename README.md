@@ -1,5 +1,5 @@
 # ICP-Variants
-Implementation and Analysis of various ICP variants (Symmetric, Multi-Resolution, Color-ICP, ...)
+The Iterative Closest Point (ICP) algorithm has been successfully used for registering 3D scans, especially for robotics tasks. Throughout the years many variants have emerged that either try to reduce the execution time and/or increase the registration quality. In this work, we analyse and examine the most prominent variants in synthetic and real-world scans. We conclude that there is a trade-off between speed and accuracy and only very limited variants can achieve both while we also point out some configurations that do not work well in practice.
 
 <p align="center">
 <img src="images/bunny.png" width="120px" height="120px"> 
